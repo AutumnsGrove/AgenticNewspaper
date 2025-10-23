@@ -364,6 +364,14 @@ Before moving to Phase 2, ensure:
 
 ## 📝 Notes & Decisions
 
+### 2025-10-23: BaseProject Integration
+- Integrated BaseProject template from https://github.com/AutumnsGrove/BaseProject
+- Added ClaudeUsage/ directory with 18+ comprehensive workflow guides
+- Created CLAUDE.md with project-specific instructions
+- Created secrets_template.json for API key management
+- Updated .gitignore to include .claude/ directory
+- All BaseProject workflow guides now available in ClaudeUsage/ directory
+
 ### 2025-10-23: Project Kickoff
 - Decided on Agent SDK + MCP architecture
 - User preferences finalized (9 topics, HN style)
