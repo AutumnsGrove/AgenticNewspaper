@@ -3,16 +3,16 @@
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add parent directory to path to enable package imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.config_loader import (
+from src.utils.config_loader import (
     load_secrets,
     load_user_preferences,
     get_anthropic_api_key,
     get_tavily_api_key
 )
-from utils.mock_clients import get_anthropic_client, is_mock_key
+from src.utils.mock_clients import get_anthropic_client, is_mock_key
 
 
 def test_load_secrets():
