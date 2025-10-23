@@ -8,3 +8,10 @@ node_modules/
 .venv/
 venv/
 .claude/
+
+# Project-specific
+data/*.db
+outputs/archives/
+*.egg-info/
+dist/
+build/
