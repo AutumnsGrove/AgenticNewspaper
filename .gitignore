@@ -1,0 +1,9 @@
+secrets.json
+*.log
+__pycache__/
+.DS_Store
+*.pyc
+.env
+node_modules/
+.venv/
+venv/

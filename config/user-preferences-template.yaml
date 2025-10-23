@@ -1,0 +1,390 @@
+# Intelligent News Aggregator - User Preferences
+# Version: 2.0
+# Last Updated: October 23, 2025
+
+# ========================================
+# TOPICS
+# ========================================
+
+topics:
+  # 1. AI & Machine Learning (Highest Priority)
+  - name: "AI & Machine Learning"
+    keywords:
+      - "artificial intelligence"
+      - "machine learning"
+      - "LLM"
+      - "large language model"
+      - "GPT"
+      - "Claude"
+      - "neural network"
+      - "deep learning"
+      - "transformer"
+      - "AI research"
+      - "foundation models"
+    exclude_keywords:
+      - "crypto"
+      - "cryptocurrency"
+      - "blockchain"
+      - "NFT"
+      - "web3"
+      - "bitcoin"
+    priority: 10
+    min_articles: 2
+    max_articles: 5
+    framing_preference: null  # No special framing
+
+  # 2. Science Breakthroughs
+  - name: "Science Breakthroughs"
+    keywords:
+      - "physics breakthrough"
+      - "biology discovery"
+      - "chemistry"
+      - "quantum"
+      - "particle physics"
+      - "CERN"
+      - "neuroscience"
+      - "genetics"
+      - "CRISPR"
+      - "scientific discovery"
+      - "peer-reviewed"
+    exclude_keywords:
+      - "pseudoscience"
+      - "astrology"
+    priority: 9
+    min_articles: 1
+    max_articles: 4
+    framing_preference: null
+
+  # 3. Space Exploration
+  - name: "Space Exploration"
+    keywords:
+      - "SpaceX"
+      - "NASA"
+      - "astronomy"
+      - "cosmology"
+      - "rocket"
+      - "satellite"
+      - "Mars"
+      - "moon"
+      - "telescope"
+      - "James Webb"
+      - "ISS"
+      - "exoplanet"
+      - "space station"
+    exclude_keywords: []
+    priority: 8
+    min_articles: 1
+    max_articles: 3
+    framing_preference: null
+
+  # 4. Climate Solutions (Positive Framing Only)
+  - name: "Climate Solutions"
+    keywords:
+      - "renewable energy"
+      - "carbon capture"
+      - "climate tech"
+      - "solar power"
+      - "wind energy"
+      - "geothermal"
+      - "green hydrogen"
+      - "climate solution"
+      - "decarbonization"
+      - "clean energy"
+      - "battery storage"
+    exclude_keywords:
+      - "climate denial"
+      - "climate disaster"
+      - "climate doom"
+      - "extinction"
+    priority: 8
+    min_articles: 1
+    max_articles: 3
+    framing_preference: "positive_only"  # Only solutions, not disasters
+
+  # 5. Energy Technology
+  - name: "Energy"
+    keywords:
+      - "nuclear fusion"
+      - "fusion energy"
+      - "nuclear power"
+      - "small modular reactor"
+      - "SMR"
+      - "battery technology"
+      - "energy storage"
+      - "grid modernization"
+      - "superconductor"
+    exclude_keywords:
+      - "oil spill"
+      - "fossil fuel lobby"
+    priority: 7
+    min_articles: 0
+    max_articles: 3
+    framing_preference: null
+
+  # 6. Longevity & Health Tech
+  - name: "Longevity & Health Tech"
+    keywords:
+      - "longevity"
+      - "aging research"
+      - "life extension"
+      - "biohacking"
+      - "medical breakthrough"
+      - "drug development"
+      - "clinical trial"
+      - "precision medicine"
+      - "gene therapy"
+      - "immunotherapy"
+    exclude_keywords:
+      - "anti-vax"
+      - "miracle cure"
+      - "snake oil"
+    priority: 7
+    min_articles: 0
+    max_articles: 2
+    framing_preference: null
+
+  # 7. Economics & Markets (Macro Focus)
+  - name: "Economics & Markets"
+    keywords:
+      - "macroeconomics"
+      - "economic policy"
+      - "central bank"
+      - "Federal Reserve"
+      - "interest rates"
+      - "inflation"
+      - "GDP"
+      - "recession"
+      - "market structure"
+      - "monetary policy"
+    exclude_keywords:
+      - "stock picks"
+      - "day trading"
+      - "get rich quick"
+      - "investment advice"
+      - "forex"
+    priority: 6
+    min_articles: 0
+    max_articles: 2
+    framing_preference: null
+
+  # 8. Tech-Adjacent Politics (Policy Focus Only)
+  - name: "Tech-Adjacent Politics"
+    keywords:
+      - "AI regulation"
+      - "AI Act"
+      - "tech policy"
+      - "antitrust"
+      - "FTC"
+      - "tech regulation"
+      - "climate policy"
+      - "science funding"
+      - "NSF"
+      - "DARPA"
+      - "tech legislation"
+    exclude_keywords:
+      - "election"
+      - "campaign"
+      - "partisan"
+      - "culture war"
+    priority: 6
+    min_articles: 0
+    max_articles: 2
+    framing_preference: "tech_impact_only"  # Only tech/science policy, no general politics
+
+  # 9. Weird & Interesting (HN Front Page Style)
+  - name: "Weird & Interesting"
+    keywords:
+      - "unexpected discovery"
+      - "fascinating"
+      - "unusual"
+      - "surprising"
+      - "counterintuitive"
+      - "mystery solved"
+      - "first time ever"
+      - "breakthrough"
+    exclude_keywords:
+      - "clickbait"
+      - "you won't believe"
+    priority: 5
+    min_articles: 0
+    max_articles: 2
+    framing_preference: null
+
+# ========================================
+# SOURCES
+# ========================================
+
+sources:
+  # Tier 1: Premium sources - always include if relevant
+  tier1_premium:
+    - "nature.com"
+    - "science.org"
+    - "nytimes.com"
+    - "reuters.com"
+    - "wsj.com"
+    - "bloomberg.com"
+    - "arxiv.org"
+
+  # Tier 2: Quality tech/science journalism - include if highly relevant
+  tier2_quality:
+    - "arstechnica.com"
+    - "theverge.com"
+    - "wired.com"
+    - "quantamagazine.org"
+    - "scientificamerican.com"
+    - "economist.com"
+    - "mit.edu"
+    - "stanford.edu"
+
+  # Tier 3: Aggregators - use for discovery, verify elsewhere
+  tier3_aggregators:
+    - "news.ycombinator.com"
+    - "techcrunch.com"
+    - "engadget.com"
+
+  # Blocklist - never include
+  blocklist:
+    - "clickbait-site.com"
+    - "spam-blog.net"
+    - "ai-wrapper-spam.com"
+
+  # Require verification for all claims
+  require_verification: true
+
+  # Cross-reference controversial claims across 2+ sources
+  cross_reference_threshold: 2
+
+# ========================================
+# OUTPUT PREFERENCES
+# ========================================
+
+output:
+  # Writing style
+  style: "hn_comment_style"  # Technical, skeptical, implications-focused
+
+  # Format
+  format: "markdown"
+
+  # Article limits (quality threshold, not fixed count)
+  min_articles: 5   # Minimum articles per digest (lower threshold if needed)
+  max_articles: 20  # Maximum articles per digest (raise threshold if needed)
+
+  # Target reading time
+  reading_time_target_minutes: 15
+
+  # Content options
+  include_summaries: true
+  include_bias_notes: true
+  include_alternative_perspectives: true
+  include_cross_story_connections: true
+  include_hn_discussion_summary: true  # If article from HN, summarize comments
+  include_cost_metadata: true
+
+# ========================================
+# QUALITY THRESHOLDS
+# ========================================
+
+quality:
+  # Base thresholds (will be adjusted based on article volume)
+  min_relevance_score: 0.7   # 0.0-1.0 scale
+  min_quality_score: 0.75    # 0.0-1.0 scale
+
+  # Adaptive thresholds
+  adaptive_threshold: true   # Adjust thresholds to hit article count targets
+
+  # If too few articles, lower to:
+  low_article_fallback:
+    min_relevance_score: 0.65
+    min_quality_score: 0.7
+
+  # If too many articles, raise to:
+  high_article_filter:
+    min_relevance_score: 0.8
+    min_quality_score: 0.85
+
+# ========================================
+# SCHEDULE
+# ========================================
+
+schedule:
+  frequency: "daily"         # daily, twice_daily, on_demand
+  time: "06:00"             # 24-hour format
+  timezone: "America/New_York"
+
+  # Breaking news threshold (future feature)
+  breaking_news_urgency_threshold: 9  # 0-10 scale, only alert if >9
+
+# ========================================
+# FEEDBACK & LEARNING
+# ========================================
+
+feedback:
+  # Passive tracking (Phase 1-4)
+  track_file_access: true
+  track_reading_time: true
+
+  # Active feedback (Phase 5+)
+  enable_ratings: false  # Enable in Phase 5
+  enable_favorites: false
+
+  # Learning
+  enable_learning: false  # Enable in Phase 5
+  learning_lookback_days: 30
+  min_feedback_samples: 10  # Minimum samples before adjusting preferences
+
+# ========================================
+# COST BUDGET
+# ========================================
+
+budget:
+  # Daily cost target
+  daily_target_usd: 0.50
+
+  # Alerts
+  daily_alert_threshold_usd: 0.60
+  weekly_alert_threshold_usd: 4.00
+
+  # Hard caps
+  monthly_cap_usd: 20.00
+
+  # Model preferences
+  prefer_cost_optimization: false  # If true, use Kimi K2 for Tier 1 (Phase 6)
+
+# ========================================
+# DATA RETENTION
+# ========================================
+
+data_retention:
+  # Digests
+  keep_digests_forever: true
+
+  # Article content
+  article_retention_days: 30
+
+  # Metadata (after article deletion)
+  keep_metadata_forever: true  # URL, title, scores, feedback
+
+  # Auto-cleanup
+  auto_cleanup_enabled: true
+  cleanup_schedule: "weekly"  # daily, weekly, monthly
+
+# ========================================
+# ADVANCED OPTIONS
+# ========================================
+
+advanced:
+  # Source expansion (Phase 2+)
+  progressive_source_expansion: true
+  start_with_familiar_sources: ["news.ycombinator.com", "theverge.com", "arstechnica.com"]
+
+  # Parallelization
+  max_parallel_searches: 5
+  max_parallel_parsers: 10
+
+  # Error handling
+  retry_failed_fetches: true
+  max_retries: 3
+
+  # Caching
+  cache_search_results_hours: 6
+  cache_article_content_hours: 24
