@@ -12,7 +12,7 @@ from utils.config_loader import (
     get_anthropic_api_key,
     get_tavily_api_key
 )
-from anthropic import Anthropic
+from utils.mock_clients import get_anthropic_client, is_mock_key
 
 
 def test_load_secrets():
@@ -61,11 +61,18 @@ def test_anthropic_api_key():
 
 
 def test_anthropic_connection():
-    """Test actual connection to Anthropic API."""
+    """Test connection to Anthropic API (or mock)."""
     print("\n=== Testing Anthropic API connection ===")
     try:
         api_key = get_anthropic_api_key()
-        client = Anthropic(api_key=api_key)
+
+        # Check if using mock
+        if is_mock_key(api_key):
+            print("  ⚠️  MOCK MODE: Using simulated API (no real calls)")
+        else:
+            print("  Using REAL Anthropic API")
+
+        client = get_anthropic_client(api_key)
 
         # Send a simple test message
         print("  Sending test message to Claude...")
