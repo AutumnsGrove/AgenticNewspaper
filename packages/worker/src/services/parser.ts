@@ -153,12 +153,18 @@ export class ParserService {
 
       return article;
     } catch (error) {
+      // Limit stack trace exposure in production for security
+      const isProduction = typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
       const errorDetails = {
         url,
         expectedTitle,
         source,
         error: error instanceof Error
-          ? { name: error.name, message: error.message, stack: error.stack?.split('\n').slice(0, 3).join('\n') }
+          ? {
+              name: error.name,
+              message: error.message,
+              ...(isProduction ? {} : { stack: error.stack?.split('\n').slice(0, 3).join('\n') }),
+            }
           : String(error),
         parseTimeMs: Date.now() - startTime,
       };

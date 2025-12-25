@@ -52,6 +52,9 @@ const RATE_LIMIT_CONFIG = {
   maxTotalRetryMs: 30000, // Maximum total retry time (30 seconds)
 };
 
+/** Maximum number of search queries per topic */
+const MAX_QUERIES_PER_TOPIC = 3;
+
 const PREMIUM_SOURCES = [
   'arxiv.org',
   'nature.com',
@@ -225,8 +228,11 @@ export class SearchService {
     // Execute searches with rate limiting and concurrency control
     // Uses a middle ground: run up to 2 queries in parallel, with delays between batches
     // Validate resultsPerQuery against bounds (1-100) enforced by search()
-    const resultsPerQuery = Math.min(100, Math.ceil(maxResults / Math.min(queries.length, 3)) + 5);
-    const queriesToExecute = queries.slice(0, 3);
+    const resultsPerQuery = Math.min(
+      100,
+      Math.ceil(maxResults / Math.min(queries.length, MAX_QUERIES_PER_TOPIC)) + 5
+    );
+    const queriesToExecute = queries.slice(0, MAX_QUERIES_PER_TOPIC);
 
     const resultsLists: SearchResult[][] = [];
     for (let i = 0; i < queriesToExecute.length; i += RATE_LIMIT_CONFIG.maxConcurrent) {
