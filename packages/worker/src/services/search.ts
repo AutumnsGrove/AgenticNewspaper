@@ -43,6 +43,13 @@ export interface SearchStats {
 
 const TAVILY_BASE_URL = 'https://api.tavily.com';
 
+// Rate limiting configuration
+const RATE_LIMIT_CONFIG = {
+  delayBetweenRequestsMs: 200, // Small delay between parallel requests
+  maxRetries: 3,
+  baseBackoffMs: 1000, // Start with 1 second backoff
+};
+
 const PREMIUM_SOURCES = [
   'arxiv.org',
   'nature.com',
@@ -94,6 +101,18 @@ export class SearchService {
    * Search for articles matching query.
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+    // Input validation
+    if (!query || typeof query !== 'string') {
+      throw new SearchError('Query must be a non-empty string', 400);
+    }
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length === 0) {
+      throw new SearchError('Query cannot be empty or whitespace only', 400);
+    }
+    if (trimmedQuery.length > 1000) {
+      throw new SearchError('Query exceeds maximum length of 1000 characters', 400);
+    }
+
     const {
       maxResults = 10,
       searchDepth = 'advanced',
@@ -102,12 +121,15 @@ export class SearchService {
       daysBack,
     } = options;
 
+    // Validate maxResults bounds
+    const validatedMaxResults = Math.min(Math.max(1, maxResults), 100);
+
     const startTime = Date.now();
 
     const payload: Record<string, unknown> = {
       api_key: this.apiKey,
-      query,
-      max_results: maxResults,
+      query: trimmedQuery,
+      max_results: validatedMaxResults,
       search_depth: searchDepth,
       include_answer: false,
       include_raw_content: false,
@@ -142,7 +164,8 @@ export class SearchService {
         );
       }
 
-      const data = (await response.json()) as TavilyResponse;
+      const rawData = await response.json();
+      const data = validateTavilyResponse(rawData);
       const results = this.parseResults(data);
 
       // Update stats
@@ -177,16 +200,25 @@ export class SearchService {
     // Generate search queries
     const queries = this.generateTopicQueries(topicName, keywords, excludeKeywords);
 
-    // Execute searches (limit to 3 to avoid rate limits)
+    // Execute searches with rate limiting and retry logic
     const resultsPerQuery = Math.ceil(maxResults / Math.min(queries.length, 3)) + 5;
-    const searchPromises = queries.slice(0, 3).map((query) =>
-      this.search(query, { ...searchOptions, maxResults: resultsPerQuery }).catch((err) => {
-        console.error(`Search query failed: ${query}`, err);
-        return [] as SearchResult[];
-      })
-    );
+    const queriesToExecute = queries.slice(0, 3);
 
-    const resultsLists = await Promise.all(searchPromises);
+    const resultsLists: SearchResult[][] = [];
+    for (let i = 0; i < queriesToExecute.length; i++) {
+      const query = queriesToExecute[i];
+
+      // Add delay between requests to avoid rate limits
+      if (i > 0) {
+        await this.delay(RATE_LIMIT_CONFIG.delayBetweenRequestsMs);
+      }
+
+      const result = await this.searchWithRetry(query, {
+        ...searchOptions,
+        maxResults: resultsPerQuery,
+      });
+      resultsLists.push(result);
+    }
 
     // Flatten and deduplicate by URL
     const seenUrls = new Set<string>();
@@ -214,6 +246,59 @@ export class SearchService {
     uniqueResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
     return uniqueResults.slice(0, maxResults);
+  }
+
+  /**
+   * Delay execution for specified milliseconds.
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Search with exponential backoff retry for rate limit errors.
+   */
+  private async searchWithRetry(
+    query: string,
+    options: SearchOptions
+  ): Promise<SearchResult[]> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < RATE_LIMIT_CONFIG.maxRetries; attempt++) {
+      try {
+        return await this.search(query, options);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+
+        // Only retry on rate limit errors (429)
+        if (err instanceof RateLimitError) {
+          const backoffMs = err.retryAfter
+            ? err.retryAfter * 1000
+            : RATE_LIMIT_CONFIG.baseBackoffMs * Math.pow(2, attempt);
+
+          console.warn(
+            `Rate limited on query "${query}", retrying in ${backoffMs}ms (attempt ${attempt + 1}/${RATE_LIMIT_CONFIG.maxRetries})`
+          );
+          await this.delay(backoffMs);
+        } else {
+          // Don't retry other errors
+          const errorDetails = {
+            message: lastError.message,
+            name: lastError.name,
+            statusCode: (err as SearchError).statusCode,
+          };
+          console.error(`Search query failed: ${query}`, JSON.stringify(errorDetails));
+          return [];
+        }
+      }
+    }
+
+    // All retries exhausted
+    console.error(
+      `Search query failed after ${RATE_LIMIT_CONFIG.maxRetries} retries: ${query}`,
+      lastError?.message
+    );
+    return [];
   }
 
   /**
@@ -321,6 +406,38 @@ interface TavilyResult {
   score: number;
   published_date?: string;
   raw_content?: string;
+}
+
+/**
+ * Runtime validation for Tavily API response.
+ * Validates critical fields to catch API changes early.
+ */
+function validateTavilyResponse(data: unknown): TavilyResponse {
+  if (!data || typeof data !== 'object') {
+    throw new SearchError('Invalid Tavily response: expected object', 0);
+  }
+
+  const response = data as Record<string, unknown>;
+
+  if (!Array.isArray(response.results)) {
+    throw new SearchError('Invalid Tavily response: missing or invalid results array', 0);
+  }
+
+  // Validate each result has required fields
+  for (let i = 0; i < response.results.length; i++) {
+    const result = response.results[i] as Record<string, unknown>;
+    if (!result || typeof result !== 'object') {
+      throw new SearchError(`Invalid Tavily response: invalid result at index ${i}`, 0);
+    }
+    if (typeof result.url !== 'string') {
+      throw new SearchError(`Invalid Tavily response: missing url at index ${i}`, 0);
+    }
+    if (typeof result.title !== 'string') {
+      throw new SearchError(`Invalid Tavily response: missing title at index ${i}`, 0);
+    }
+  }
+
+  return data as TavilyResponse;
 }
 
 // ============================================================================

@@ -147,6 +147,26 @@ export class LLMService {
    * Complete a prompt using OpenRouter.
    */
   async complete(prompt: string, options: CompletionOptions = {}): Promise<LLMResponse> {
+    // Input validation
+    if (!prompt || typeof prompt !== 'string') {
+      throw new LLMError('Prompt must be a non-empty string', 400);
+    }
+    if (prompt.length === 0) {
+      throw new LLMError('Prompt cannot be empty', 400);
+    }
+
+    // Estimate token count (~4 chars per token for English) and validate against context limit
+    const estimatedTokens = Math.ceil(prompt.length / 4);
+    const maxContextTokens = this.modelInfo.contextLength;
+    // Reserve 20% of context for response and system prompt overhead
+    const maxInputTokens = Math.floor(maxContextTokens * 0.8);
+    if (estimatedTokens > maxInputTokens) {
+      throw new LLMError(
+        `Prompt too long: estimated ${estimatedTokens} tokens exceeds limit of ${maxInputTokens} tokens for model ${this.model}`,
+        400
+      );
+    }
+
     const { maxTokens = 1024, temperature = 0.7, systemPrompt, stopSequences, topP } = options;
 
     const startTime = Date.now();
@@ -190,7 +210,8 @@ export class LLMService {
         return this.handleError(response);
       }
 
-      const data = (await response.json()) as OpenRouterResponse;
+      const rawData = await response.json();
+      const data = validateOpenRouterResponse(rawData);
       const result = this.parseResponse(data, startTime);
 
       // Update stats
@@ -353,6 +374,42 @@ interface OpenRouterResponse {
     total_tokens?: number;
   };
   model?: string;
+}
+
+/**
+ * Runtime validation for OpenRouter API response.
+ * Validates critical fields to catch API changes early.
+ */
+function validateOpenRouterResponse(data: unknown): OpenRouterResponse {
+  if (!data || typeof data !== 'object') {
+    throw new LLMError('Invalid response: expected object', 0);
+  }
+
+  const response = data as Record<string, unknown>;
+
+  if (!Array.isArray(response.choices)) {
+    throw new LLMError('Invalid response: missing or invalid choices array', 0);
+  }
+
+  if (response.choices.length === 0) {
+    throw new LLMError('Invalid response: empty choices array', 0);
+  }
+
+  const firstChoice = response.choices[0] as Record<string, unknown>;
+  if (!firstChoice || typeof firstChoice !== 'object') {
+    throw new LLMError('Invalid response: invalid choice object', 0);
+  }
+
+  const message = firstChoice.message as Record<string, unknown>;
+  if (!message || typeof message !== 'object') {
+    throw new LLMError('Invalid response: missing message in choice', 0);
+  }
+
+  if (typeof message.content !== 'string') {
+    throw new LLMError('Invalid response: missing or invalid content in message', 0);
+  }
+
+  return data as OpenRouterResponse;
 }
 
 // ============================================================================
