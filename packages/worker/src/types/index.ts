@@ -14,6 +14,7 @@ export interface Env {
   // R2 Storage
   DIGESTS: R2Bucket;
   CACHE: R2Bucket;
+  R2_BUCKET: R2Bucket;
 
   // Durable Objects
   DIGEST_JOB: DurableObjectNamespace;
@@ -25,6 +26,19 @@ export interface Env {
 
   // Environment variables
   ENVIRONMENT: string;
+  WORKER_URL?: string;
+  WEB_URL?: string;
+
+  // Orchestrator API (Python core service)
+  ORCHESTRATOR_API_URL?: string;
+  ORCHESTRATOR_API_KEY?: string;
+
+  // GroveAuth / Heartwood
+  HEARTWOOD_CLIENT_ID?: string;
+  HEARTWOOD_CLIENT_SECRET?: string;
+
+  // Webhook verification
+  WEBHOOK_SECRET?: string;
 
   // Secrets (set via wrangler secret)
   OPENROUTER_API_KEY?: string;

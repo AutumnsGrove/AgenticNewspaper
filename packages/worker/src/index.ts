@@ -7,8 +7,8 @@
 
 import { Hono } from 'hono';
 import type { Env } from './types';
-import { auth, digests, users, rss } from './api';
-import { DigestJob, UserState } from './services';
+import { auth, digests, users, rss, webhooks } from './api';
+import { DigestJob, UserState, startDigestGeneration, getUserById } from './services';
 import {
   cors,
   rateLimit,
@@ -63,6 +63,9 @@ app.route('/api/auth', auth);
 
 // RSS feeds (token-based auth)
 app.route('/rss', rss);
+
+// Webhooks (signature-verified)
+app.route('/api/webhooks', webhooks);
 
 // ============================================================================
 // Protected Routes
@@ -138,31 +141,52 @@ async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionCo
 async function triggerDailyDigests(env: Env, frequency: string): Promise<void> {
   try {
     const result = await env.DB.prepare(
-      `SELECT id FROM users
-       WHERE json_extract(preferences_json, '$.delivery.frequency') = ?
-       AND json_extract(preferences_json, '$.delivery.channels') LIKE '%"email"%'`
-    )
-      .bind(frequency)
-      .all();
+      `SELECT id, preferences_json FROM users
+       WHERE json_extract(preferences_json, '$.deliveryFrequency') = 'daily'
+       AND json_extract(preferences_json, '$.channels') LIKE '%"email"%'`
+    ).all();
 
     console.log(`Triggering ${result.results.length} ${frequency} digests`);
 
     for (const row of result.results) {
       const userId = row.id as string;
+      const preferencesJson = row.preferences_json as string;
+
+      // Parse user preferences
+      let preferences;
+      try {
+        preferences = JSON.parse(preferencesJson || '{}');
+      } catch {
+        console.error(`Invalid preferences for user ${userId}`);
+        continue;
+      }
+
+      // Track job in Durable Object
       const doId = env.DIGEST_JOB.idFromName(userId);
       const stub = env.DIGEST_JOB.get(doId);
+      const jobId = `${userId}_${Date.now()}`;
 
-      // Start digest generation
       await stub.fetch(
         new Request('https://do/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            jobId: `${userId}_${Date.now()}`,
-          }),
+          body: JSON.stringify({ userId, jobId }),
         })
       );
+
+      // Start orchestrator generation (async, will callback via webhook)
+      const orchestratorResult = await startDigestGeneration(env, userId, preferences);
+
+      if (!orchestratorResult.success) {
+        console.error(`Failed to start digest for ${userId}:`, orchestratorResult.error);
+        await stub.fetch(
+          new Request('https://do/fail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: orchestratorResult.error }),
+          })
+        );
+      }
     }
   } catch (error) {
     console.error('Error triggering daily digests:', error);
@@ -175,27 +199,45 @@ async function triggerDailyDigests(env: Env, frequency: string): Promise<void> {
 async function triggerWeeklyDigests(env: Env): Promise<void> {
   try {
     const result = await env.DB.prepare(
-      `SELECT id FROM users
-       WHERE json_extract(preferences_json, '$.delivery.frequency') IN ('weekly', 'biweekly')`
+      `SELECT id, preferences_json FROM users
+       WHERE json_extract(preferences_json, '$.deliveryFrequency') IN ('weekly', 'biweekly')`
     ).all();
 
     console.log(`Triggering ${result.results.length} weekly digests`);
 
     for (const row of result.results) {
       const userId = row.id as string;
+      const preferencesJson = row.preferences_json as string;
+
+      let preferences;
+      try {
+        preferences = JSON.parse(preferencesJson || '{}');
+      } catch {
+        continue;
+      }
+
       const doId = env.DIGEST_JOB.idFromName(userId);
       const stub = env.DIGEST_JOB.get(doId);
+      const jobId = `${userId}_${Date.now()}`;
 
       await stub.fetch(
         new Request('https://do/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            jobId: `${userId}_${Date.now()}`,
-          }),
+          body: JSON.stringify({ userId, jobId }),
         })
       );
+
+      const orchestratorResult = await startDigestGeneration(env, userId, preferences);
+      if (!orchestratorResult.success) {
+        await stub.fetch(
+          new Request('https://do/fail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: orchestratorResult.error }),
+          })
+        );
+      }
     }
   } catch (error) {
     console.error('Error triggering weekly digests:', error);
@@ -208,27 +250,45 @@ async function triggerWeeklyDigests(env: Env): Promise<void> {
 async function triggerHourlyDigests(env: Env): Promise<void> {
   try {
     const result = await env.DB.prepare(
-      `SELECT id FROM users
-       WHERE json_extract(preferences_json, '$.delivery.frequency') = 'hourly'`
+      `SELECT id, preferences_json FROM users
+       WHERE json_extract(preferences_json, '$.deliveryFrequency') = 'hourly'`
     ).all();
 
     console.log(`Triggering ${result.results.length} hourly digests`);
 
     for (const row of result.results) {
       const userId = row.id as string;
+      const preferencesJson = row.preferences_json as string;
+
+      let preferences;
+      try {
+        preferences = JSON.parse(preferencesJson || '{}');
+      } catch {
+        continue;
+      }
+
       const doId = env.DIGEST_JOB.idFromName(userId);
       const stub = env.DIGEST_JOB.get(doId);
+      const jobId = `${userId}_${Date.now()}`;
 
       await stub.fetch(
         new Request('https://do/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            jobId: `${userId}_${Date.now()}`,
-          }),
+          body: JSON.stringify({ userId, jobId }),
         })
       );
+
+      const orchestratorResult = await startDigestGeneration(env, userId, preferences);
+      if (!orchestratorResult.success) {
+        await stub.fetch(
+          new Request('https://do/fail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: orchestratorResult.error }),
+          })
+        );
+      }
     }
   } catch (error) {
     console.error('Error triggering hourly digests:', error);
