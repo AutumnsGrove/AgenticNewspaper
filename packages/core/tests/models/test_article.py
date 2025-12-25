@@ -256,7 +256,7 @@ class TestContentType:
             ContentType.RESEARCH,
             ContentType.NEWS,
             ContentType.OPINION,
-            ContentType.TUTORIAL,
+            ContentType.ANALYSIS,
         ],
     )
     def test_type_values(self, content_type):

@@ -51,6 +51,15 @@ id = "placeholder-id"
 [vars]
 ENVIRONMENT = "development"
 
+# Scheduled triggers for digest generation
+# Cron format: minute hour day-of-month month day-of-week
+[triggers]
+crons = [
+  "0 6 * * *",   # Daily at 6:00 AM UTC (morning digest)
+  "0 18 * * *",  # Daily at 6:00 PM UTC (evening digest)
+  "0 * * * *",   # Every hour (for hourly subscribers)
+]
+
 # Staging environment
 [env.staging]
 name = "daily-clearing-staging"

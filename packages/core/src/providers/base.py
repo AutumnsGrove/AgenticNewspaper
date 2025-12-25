@@ -57,6 +57,15 @@ class ModelTier(Enum):
 
 
 @dataclass
+class Message:
+    """A message in a conversation."""
+
+    role: str  # "user", "assistant", or "system"
+    content: str
+    name: str | None = None
+
+
+@dataclass
 class ModelInfo:
     """Information about an LLM model."""
 

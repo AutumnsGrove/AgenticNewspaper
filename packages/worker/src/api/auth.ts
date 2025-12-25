@@ -2,12 +2,27 @@
  * Authentication API Routes.
  *
  * Handles user authentication and session management.
+ * Supports both local auth (for development) and GroveAuth/Heartwood (production).
  */
 
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Env, User, AuthToken } from '../types';
 import { createUser, getUserByEmail, getUserById } from '../services/database';
+import {
+  generateCodeVerifier,
+  generateCodeChallenge,
+  getLoginUrl,
+  exchangeCodeForTokens,
+  verifyToken,
+  getUserInfo,
+  revokeTokens,
+  storePKCEState,
+  getPKCEState,
+  createSession,
+  getSession,
+  deleteSession,
+} from '../services/auth';
 
 const auth = new Hono<{ Bindings: Env }>();
 
@@ -385,5 +400,187 @@ export async function requireAuth(
   (c as Record<string, unknown>).user = payload;
   await next();
 }
+
+// ============================================================================
+// GroveAuth / Heartwood OAuth Routes
+// ============================================================================
+
+/**
+ * GET /auth/heartwood/login - Initiate Heartwood OAuth flow.
+ */
+auth.get('/heartwood/login', async (c) => {
+  const redirectUri = `${new URL(c.req.url).origin}/api/auth/heartwood/callback`;
+
+  // Generate PKCE values
+  const state = crypto.randomUUID();
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+  // Store PKCE state for callback verification
+  await storePKCEState(c.env, state, codeVerifier, redirectUri);
+
+  // Redirect to Heartwood login
+  const loginUrl = getLoginUrl(redirectUri, state, codeChallenge);
+  return c.redirect(loginUrl);
+});
+
+/**
+ * GET /auth/heartwood/callback - Handle Heartwood OAuth callback.
+ */
+auth.get('/heartwood/callback', async (c) => {
+  const url = new URL(c.req.url);
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const error = url.searchParams.get('error');
+
+  // Handle error from Heartwood
+  if (error) {
+    return c.redirect(`/?auth_error=${encodeURIComponent(error)}`);
+  }
+
+  if (!code || !state) {
+    return c.redirect('/?auth_error=missing_params');
+  }
+
+  // Retrieve PKCE state
+  const pkceState = await getPKCEState(c.env, state);
+  if (!pkceState) {
+    return c.redirect('/?auth_error=invalid_state');
+  }
+
+  try {
+    // Exchange code for tokens
+    const clientSecret = c.env.HEARTWOOD_CLIENT_SECRET;
+    if (!clientSecret) {
+      throw new Error('HEARTWOOD_CLIENT_SECRET not configured');
+    }
+
+    const tokens = await exchangeCodeForTokens(
+      code,
+      pkceState.redirectUri,
+      pkceState.codeVerifier,
+      clientSecret
+    );
+
+    // Get user info from Heartwood
+    const heartwoodUser = await getUserInfo(tokens.access_token);
+    if (!heartwoodUser) {
+      throw new Error('Failed to get user info');
+    }
+
+    // Check if user exists in our DB, create if not
+    let user = await getUserByEmail(c.env.DB, heartwoodUser.email);
+    if (!user) {
+      user = await createUser(c.env.DB, {
+        id: heartwoodUser.id, // Use Heartwood user ID
+        email: heartwoodUser.email,
+      });
+    }
+
+    // Create local session
+    const sessionId = await createSession(
+      c.env,
+      user.id,
+      tokens.access_token,
+      tokens.refresh_token,
+      tokens.expires_in
+    );
+
+    // Set session cookie and redirect to app
+    const headers = new Headers();
+    headers.set('Location', '/');
+    headers.set(
+      'Set-Cookie',
+      `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${tokens.expires_in}`
+    );
+
+    return new Response(null, { status: 302, headers });
+  } catch (err) {
+    console.error('OAuth callback error:', err);
+    return c.redirect('/?auth_error=callback_failed');
+  }
+});
+
+/**
+ * POST /auth/heartwood/logout - Logout from Heartwood and clear session.
+ */
+auth.post('/heartwood/logout', async (c) => {
+  // Get session from cookie
+  const cookie = c.req.header('Cookie');
+  const sessionMatch = cookie?.match(/session=([^;]+)/);
+
+  if (sessionMatch) {
+    const sessionId = sessionMatch[1];
+    const session = await getSession(c.env, sessionId);
+
+    if (session) {
+      // Revoke tokens with Heartwood
+      try {
+        await revokeTokens(session.accessToken);
+      } catch {
+        // Ignore errors revoking tokens
+      }
+
+      // Delete local session
+      await deleteSession(c.env, sessionId);
+    }
+  }
+
+  // Clear cookie
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.set('Set-Cookie', 'session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+
+  return new Response(JSON.stringify({ success: true }), { headers });
+});
+
+/**
+ * GET /auth/heartwood/me - Get current user from Heartwood session.
+ */
+auth.get('/heartwood/me', async (c) => {
+  const cookie = c.req.header('Cookie');
+  const sessionMatch = cookie?.match(/session=([^;]+)/);
+
+  if (!sessionMatch) {
+    return c.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Not logged in' } },
+      401
+    );
+  }
+
+  const sessionId = sessionMatch[1];
+  const session = await getSession(c.env, sessionId);
+
+  if (!session) {
+    return c.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Session expired' } },
+      401
+    );
+  }
+
+  // Get user from our DB
+  const user = await getUserById(c.env.DB, session.userId);
+  if (!user) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'User not found' } },
+      404
+    );
+  }
+
+  // Optionally verify with Heartwood (for fresh data)
+  const heartwoodUser = await verifyToken(session.accessToken);
+
+  return c.json({
+    success: true,
+    data: {
+      id: user.id,
+      email: user.email,
+      name: heartwoodUser?.name || null,
+      picture: heartwoodUser?.picture || null,
+      subscriptionTier: user.subscriptionTier,
+      preferences: user.preferences,
+    },
+  });
+});
 
 export { auth, verifyJwt, createJwt };

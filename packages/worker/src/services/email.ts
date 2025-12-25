@@ -468,3 +468,532 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+// ============================================================================
+// Welcome Email
+// ============================================================================
+
+/**
+ * Send welcome email to new subscriber.
+ */
+export async function sendWelcomeEmail(
+  env: Env,
+  options: {
+    to: string;
+    userId: string;
+    webUrl: string;
+  }
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const { to, userId, webUrl } = options;
+
+  const subject = 'Welcome to The Daily Clearing';
+  const html = buildWelcomeEmailHtml({ webUrl });
+  const text = buildWelcomeEmailText({ webUrl });
+
+  return sendEmail(env, {
+    to,
+    subject,
+    html,
+    text,
+    tags: [
+      { name: 'user_id', value: userId },
+      { name: 'type', value: 'welcome' },
+    ],
+  });
+}
+
+function buildWelcomeEmailHtml(options: { webUrl: string }): string {
+  const { webUrl } = options;
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to The Daily Clearing</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Georgia, 'Times New Roman', serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #1a1a1a; padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: normal; letter-spacing: 2px;">
+                THE DAILY CLEARING
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Welcome Message -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px; font-size: 24px; color: #1f2937;">Welcome Aboard!</h2>
+
+              <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.7;">
+                You've joined a smarter way to stay informed. The Daily Clearing synthesizes news with technical depth
+                and healthy skepticism, cutting through noise to deliver what actually matters.
+              </p>
+
+              <h3 style="margin: 24px 0 12px; font-size: 18px; color: #1f2937;">What to Expect</h3>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="padding: 12px; background-color: #f9fafb; border-radius: 8px; margin-bottom: 8px;">
+                    <strong style="color: #1f2937;">Curated Coverage</strong>
+                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">
+                      We scan hundreds of sources but include only what's genuinely significant.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 8px;">
+                <tr>
+                  <td style="padding: 12px; background-color: #f9fafb; border-radius: 8px;">
+                    <strong style="color: #1f2937;">Skeptic's Corner</strong>
+                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">
+                      Every digest includes critical analysis of claims that might not hold up.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 8px;">
+                <tr>
+                  <td style="padding: 12px; background-color: #f9fafb; border-radius: 8px;">
+                    <strong style="color: #1f2937;">Cross-Story Connections</strong>
+                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">
+                      We highlight themes and patterns you might miss reading stories in isolation.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="margin-top: 32px; text-align: center;">
+                <a href="${webUrl}/settings" style="display: inline-block; padding: 12px 24px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                  Customize Your Topics
+                </a>
+              </div>
+
+              <p style="margin: 32px 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                Your first digest will arrive at your scheduled time, or you can
+                <a href="${webUrl}" style="color: #3b82f6;">generate one now</a>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px; background-color: #1a1a1a; text-align: center;">
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                Questions? Reply to this email - we read everything.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+function buildWelcomeEmailText(options: { webUrl: string }): string {
+  const { webUrl } = options;
+
+  return `
+THE DAILY CLEARING
+==================
+
+Welcome Aboard!
+
+You've joined a smarter way to stay informed. The Daily Clearing synthesizes
+news with technical depth and healthy skepticism, cutting through noise to
+deliver what actually matters.
+
+WHAT TO EXPECT
+--------------
+
+* Curated Coverage
+  We scan hundreds of sources but include only what's genuinely significant.
+
+* Skeptic's Corner
+  Every digest includes critical analysis of claims that might not hold up.
+
+* Cross-Story Connections
+  We highlight themes and patterns you might miss reading stories in isolation.
+
+Get started: ${webUrl}/settings
+
+Your first digest will arrive at your scheduled time, or you can generate
+one now at ${webUrl}
+
+Questions? Reply to this email - we read everything.
+  `.trim();
+}
+
+// ============================================================================
+// Email Verification
+// ============================================================================
+
+/**
+ * Send email verification link.
+ */
+export async function sendVerificationEmail(
+  env: Env,
+  options: {
+    to: string;
+    userId: string;
+    verificationUrl: string;
+  }
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const { to, userId, verificationUrl } = options;
+
+  const subject = 'Verify your email - The Daily Clearing';
+  const html = buildVerificationEmailHtml({ verificationUrl });
+  const text = buildVerificationEmailText({ verificationUrl });
+
+  return sendEmail(env, {
+    to,
+    subject,
+    html,
+    text,
+    tags: [
+      { name: 'user_id', value: userId },
+      { name: 'type', value: 'verification' },
+    ],
+  });
+}
+
+function buildVerificationEmailHtml(options: { verificationUrl: string }): string {
+  const { verificationUrl } = options;
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Email</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Georgia, 'Times New Roman', serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #1a1a1a; padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: normal; letter-spacing: 2px;">
+                THE DAILY CLEARING
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px; text-align: center;">
+              <h2 style="margin: 0 0 16px; font-size: 24px; color: #1f2937;">Verify Your Email</h2>
+
+              <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.7;">
+                Click the button below to verify your email address and complete your registration.
+              </p>
+
+              <a href="${verificationUrl}" style="display: inline-block; padding: 14px 32px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                Verify Email Address
+              </a>
+
+              <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px;">
+                This link expires in 24 hours.
+              </p>
+
+              <p style="margin: 24px 0 0; color: #9ca3af; font-size: 12px;">
+                If you didn't create an account, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0; color: #3b82f6; font-size: 12px; word-break: break-all;">
+                ${verificationUrl}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+function buildVerificationEmailText(options: { verificationUrl: string }): string {
+  const { verificationUrl } = options;
+
+  return `
+THE DAILY CLEARING
+==================
+
+VERIFY YOUR EMAIL
+
+Click the link below to verify your email address and complete your registration:
+
+${verificationUrl}
+
+This link expires in 24 hours.
+
+If you didn't create an account, you can safely ignore this email.
+  `.trim();
+}
+
+// ============================================================================
+// Password Reset
+// ============================================================================
+
+/**
+ * Send password reset email.
+ */
+export async function sendPasswordResetEmail(
+  env: Env,
+  options: {
+    to: string;
+    userId: string;
+    resetUrl: string;
+  }
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const { to, userId, resetUrl } = options;
+
+  const subject = 'Reset your password - The Daily Clearing';
+  const html = buildPasswordResetEmailHtml({ resetUrl });
+  const text = buildPasswordResetEmailText({ resetUrl });
+
+  return sendEmail(env, {
+    to,
+    subject,
+    html,
+    text,
+    tags: [
+      { name: 'user_id', value: userId },
+      { name: 'type', value: 'password_reset' },
+    ],
+  });
+}
+
+function buildPasswordResetEmailHtml(options: { resetUrl: string }): string {
+  const { resetUrl } = options;
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Password</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Georgia, 'Times New Roman', serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #1a1a1a; padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: normal; letter-spacing: 2px;">
+                THE DAILY CLEARING
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px; text-align: center;">
+              <h2 style="margin: 0 0 16px; font-size: 24px; color: #1f2937;">Reset Your Password</h2>
+
+              <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.7;">
+                We received a request to reset your password. Click the button below to choose a new one.
+              </p>
+
+              <a href="${resetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                Reset Password
+              </a>
+
+              <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px;">
+                This link expires in 1 hour.
+              </p>
+
+              <p style="margin: 24px 0 0; color: #9ca3af; font-size: 12px;">
+                If you didn't request this, you can safely ignore this email. Your password will remain unchanged.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0; color: #3b82f6; font-size: 12px; word-break: break-all;">
+                ${resetUrl}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+function buildPasswordResetEmailText(options: { resetUrl: string }): string {
+  const { resetUrl } = options;
+
+  return `
+THE DAILY CLEARING
+==================
+
+RESET YOUR PASSWORD
+
+We received a request to reset your password. Click the link below to choose a new one:
+
+${resetUrl}
+
+This link expires in 1 hour.
+
+If you didn't request this, you can safely ignore this email. Your password will remain unchanged.
+  `.trim();
+}
+
+// ============================================================================
+// Digest Notification (Short)
+// ============================================================================
+
+/**
+ * Send notification that new digest is ready.
+ */
+export async function sendDigestNotificationEmail(
+  env: Env,
+  options: {
+    to: string;
+    userId: string;
+    digestId: string;
+    articleCount: number;
+    topicCount: number;
+    webUrl: string;
+  }
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const { to, userId, digestId, articleCount, topicCount, webUrl } = options;
+
+  const subject = `Your Daily Clearing is ready (${articleCount} articles)`;
+  const html = buildDigestNotificationHtml({ digestId, articleCount, topicCount, webUrl });
+  const text = buildDigestNotificationText({ digestId, articleCount, topicCount, webUrl });
+
+  return sendEmail(env, {
+    to,
+    subject,
+    html,
+    text,
+    tags: [
+      { name: 'user_id', value: userId },
+      { name: 'digest_id', value: digestId },
+      { name: 'type', value: 'digest_notification' },
+    ],
+  });
+}
+
+function buildDigestNotificationHtml(options: {
+  digestId: string;
+  articleCount: number;
+  topicCount: number;
+  webUrl: string;
+}): string {
+  const { digestId, articleCount, topicCount, webUrl } = options;
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Digest is Ready</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Georgia, 'Times New Roman', serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #1a1a1a; padding: 24px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: normal; letter-spacing: 2px;">
+                THE DAILY CLEARING
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px; text-align: center;">
+              <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+                New digest available
+              </p>
+              <h2 style="margin: 0 0 24px; font-size: 28px; color: #1f2937;">
+                ${articleCount} Articles
+              </h2>
+              <p style="margin: 0 0 24px; color: #374151; font-size: 16px;">
+                Across ${topicCount} topic${topicCount !== 1 ? 's' : ''}
+              </p>
+
+              <a href="${webUrl}/digest/${digestId}" style="display: inline-block; padding: 14px 32px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                Read Your Digest
+              </a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+function buildDigestNotificationText(options: {
+  digestId: string;
+  articleCount: number;
+  topicCount: number;
+  webUrl: string;
+}): string {
+  const { digestId, articleCount, topicCount, webUrl } = options;
+
+  return `
+THE DAILY CLEARING
+==================
+
+Your new digest is ready!
+
+${articleCount} articles across ${topicCount} topic${topicCount !== 1 ? 's' : ''}.
+
+Read it here: ${webUrl}/digest/${digestId}
+  `.trim();
+}

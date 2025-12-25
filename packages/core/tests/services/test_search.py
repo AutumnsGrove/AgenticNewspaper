@@ -10,8 +10,8 @@ from src.services.search import (
     SearchService,
     SearchResult,
     SearchProvider,
-    TavilyProvider,
-    MockSearchProvider,
+    SearchConfig,
+    SearchStats,
 )
 
 
