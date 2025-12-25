@@ -10,7 +10,7 @@ import os
 from enum import Enum
 from typing import Any
 
-from .base import BaseLLMProvider, ModelTier
+from .base import BaseLLMProvider, ModelTier, ModelNotFoundError
 from .openrouter import OpenRouterProvider, OPENROUTER_MODELS, DEFAULT_TIER1_MODEL, DEFAULT_TIER2_MODEL
 from .anthropic import AnthropicProvider, ANTHROPIC_MODELS
 
@@ -196,6 +196,13 @@ def get_provider(
 
         try:
             return create_provider(ptype, model=model, **kwargs)
+        except ModelNotFoundError:
+            # Model from one provider isn't valid for another - try with default
+            try:
+                return create_provider(ptype, model=None, **kwargs)
+            except ValueError as e:
+                errors.append(str(e))
+                continue
         except ValueError as e:
             errors.append(str(e))
             continue
