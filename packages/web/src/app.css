@@ -1,0 +1,214 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		--color-paper: 250 249 247;
+		--color-ink: 26 26 26;
+	}
+
+	.dark {
+		--color-paper: 26 26 26;
+		--color-ink: 250 249 247;
+	}
+
+	/* Newspaper-style typography */
+	html {
+		font-family: 'Inter', system-ui, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	h1, h2, h3, h4, h5, h6 {
+		font-family: Georgia, 'Times New Roman', serif;
+		font-weight: 700;
+	}
+
+	/* Article content styling */
+	.prose-newspaper {
+		@apply prose prose-lg max-w-none;
+		@apply prose-headings:font-serif prose-headings:text-ink-900 dark:prose-headings:text-paper-100;
+		@apply prose-p:text-ink-800 dark:prose-p:text-paper-200;
+		@apply prose-a:text-blue-600 dark:prose-a:text-blue-400;
+		@apply prose-blockquote:border-l-paper-400 dark:prose-blockquote:border-l-ink-600;
+		@apply prose-blockquote:text-ink-600 dark:prose-blockquote:text-paper-400;
+		@apply prose-code:bg-paper-200 dark:prose-code:bg-ink-800;
+		@apply prose-pre:bg-ink-900 dark:prose-pre:bg-ink-800;
+	}
+}
+
+@layer components {
+	/* Newspaper masthead */
+	.masthead {
+		@apply border-b-4 border-ink-900 dark:border-paper-100;
+		@apply pb-4 mb-8;
+	}
+
+	.masthead-title {
+		@apply text-5xl md:text-6xl lg:text-7xl font-serif font-bold;
+		@apply tracking-tight text-center;
+	}
+
+	.masthead-date {
+		@apply text-sm text-ink-500 dark:text-paper-500 text-center mt-2;
+		@apply font-sans uppercase tracking-widest;
+	}
+
+	/* Bifold layout */
+	.bifold-container {
+		@apply grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12;
+	}
+
+	.bifold-column {
+		@apply space-y-8;
+	}
+
+	.bifold-divider {
+		@apply hidden lg:block absolute left-1/2 top-0 bottom-0;
+		@apply w-px bg-paper-300 dark:bg-ink-700;
+	}
+
+	/* Article cards */
+	.article-card {
+		@apply border-b border-paper-300 dark:border-ink-700 pb-6;
+	}
+
+	.article-card:last-child {
+		@apply border-b-0;
+	}
+
+	.article-title {
+		@apply text-xl md:text-2xl font-serif font-bold;
+		@apply text-ink-900 dark:text-paper-100;
+		@apply hover:text-blue-600 dark:hover:text-blue-400;
+		@apply transition-colors duration-200;
+	}
+
+	.article-meta {
+		@apply text-sm text-ink-500 dark:text-paper-500;
+		@apply flex items-center gap-2 mt-2;
+	}
+
+	.article-summary {
+		@apply text-ink-700 dark:text-paper-300 mt-3;
+		@apply leading-relaxed;
+	}
+
+	.article-insights {
+		@apply mt-4 p-4 bg-paper-100 dark:bg-ink-900;
+		@apply border-l-4 border-blue-500;
+		@apply text-sm;
+	}
+
+	.article-insights-title {
+		@apply font-semibold text-blue-600 dark:text-blue-400 mb-2;
+	}
+
+	/* Topic section */
+	.topic-section {
+		@apply mb-12;
+	}
+
+	.topic-header {
+		@apply flex items-center gap-3 mb-6;
+		@apply border-b-2 border-ink-900 dark:border-paper-100 pb-2;
+	}
+
+	.topic-title {
+		@apply text-2xl md:text-3xl font-serif font-bold;
+	}
+
+	/* Skeptic's corner */
+	.skeptics-corner {
+		@apply mt-4 p-4;
+		@apply bg-amber-50 dark:bg-amber-900/20;
+		@apply border-l-4 border-amber-500;
+		@apply text-sm italic;
+	}
+
+	.skeptics-corner-title {
+		@apply font-semibold text-amber-700 dark:text-amber-400 not-italic mb-1;
+	}
+
+	/* Stats footer */
+	.digest-stats {
+		@apply mt-12 pt-8 border-t-2 border-paper-300 dark:border-ink-700;
+		@apply grid grid-cols-2 md:grid-cols-4 gap-4;
+	}
+
+	.stat-item {
+		@apply text-center;
+	}
+
+	.stat-value {
+		@apply text-2xl font-bold text-ink-900 dark:text-paper-100;
+	}
+
+	.stat-label {
+		@apply text-xs text-ink-500 dark:text-paper-500 uppercase tracking-wide;
+	}
+
+	/* Buttons */
+	.btn {
+		@apply inline-flex items-center justify-center gap-2;
+		@apply px-4 py-2 rounded-lg font-medium;
+		@apply transition-all duration-200;
+		@apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+	}
+
+	.btn-primary {
+		@apply bg-ink-900 dark:bg-paper-100;
+		@apply text-paper-100 dark:text-ink-900;
+		@apply hover:bg-ink-800 dark:hover:bg-paper-200;
+		@apply focus:ring-ink-500;
+	}
+
+	.btn-secondary {
+		@apply bg-paper-200 dark:bg-ink-800;
+		@apply text-ink-900 dark:text-paper-100;
+		@apply hover:bg-paper-300 dark:hover:bg-ink-700;
+		@apply focus:ring-paper-400;
+	}
+
+	.btn-ghost {
+		@apply text-ink-600 dark:text-paper-400;
+		@apply hover:bg-paper-200 dark:hover:bg-ink-800;
+	}
+
+	/* Theme toggle */
+	.theme-toggle {
+		@apply p-2 rounded-lg;
+		@apply hover:bg-paper-200 dark:hover:bg-ink-800;
+		@apply transition-colors duration-200;
+	}
+}
+
+@layer utilities {
+	/* Print styles for newspaper feel */
+	@media print {
+		.bifold-container {
+			@apply block;
+		}
+
+		.article-card {
+			@apply break-inside-avoid;
+		}
+	}
+
+	/* Smooth page transitions */
+	.page-transition {
+		animation: fadeIn 0.3s ease-out;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+}
