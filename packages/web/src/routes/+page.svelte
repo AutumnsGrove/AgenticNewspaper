@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Masthead, BifoldLayout, DigestStats } from '$components';
-	import { currentDigest, loading, error } from '$stores';
-	import { RefreshCw, Calendar, ChevronRight } from 'lucide-svelte';
+	import { currentDigest, loading, error, preferences } from '$stores';
+	import { RefreshCw, Calendar, ChevronRight, Settings } from 'lucide-svelte';
 	import type { Digest } from '$types';
 	import { generateTestDigest } from '$lib/api';
 
@@ -122,10 +122,22 @@
 	let digest = $derived($currentDigest || mockDigest);
 
 	async function refreshDigest() {
+		const mode = $preferences.generationMode || 'cloudflare';
+
 		try {
+			if (mode === 'cloudflare') {
+				// Cloudflare mode requires authentication (not yet implemented)
+				alert(
+					'🔐 Cloudflare mode requires authentication.\n\n' +
+					'For now, please switch to Server mode in Settings to generate digests.\n\n' +
+					'Server mode provisions an ephemeral Hetzner VPS that self-destructs after generation.'
+				);
+				return;
+			}
+
+			// Server mode - provision Hetzner server
 			loading.start('Provisioning ephemeral server...');
 
-			// Call the Cloudflare Worker to provision a Hetzner server
 			const result = await generateTestDigest();
 
 			if (result.success) {
@@ -133,15 +145,19 @@
 				loading.progress(50, 'Server booting and generating digest...');
 
 				// TODO: Poll job status and update when complete
-				// For now, just show success
 				await new Promise((resolve) => setTimeout(resolve, 3000));
 				loading.progress(100, 'Digest generated!');
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 				loading.stop();
 
-				// Show success message
 				console.log('🎉 Digest generation started!', result.data);
-				alert(`✅ Digest generation started!\n\nJob ID: ${result.data?.jobId}\nServer: ${result.data?.serverId}\nIP: ${result.data?.serverIp}\n\nThe server is now generating your digest. This typically takes 30-60 seconds.`);
+				alert(
+					`✅ Digest generation started!\n\n` +
+					`Job ID: ${result.data?.jobId}\n` +
+					`Server: ${result.data?.serverId}\n` +
+					`IP: ${result.data?.serverIp}\n\n` +
+					`The server is now generating your digest. This typically takes 30-60 seconds.`
+				);
 			} else {
 				error.set(result.error?.message || 'Failed to start digest generation');
 				loading.stop();
@@ -167,10 +183,27 @@
 
 	<!-- Action buttons -->
 	<div class="flex items-center justify-between mb-8">
-		<button onclick={refreshDigest} class="btn btn-primary" disabled={$loading.isLoading}>
-			<RefreshCw class="w-4 h-4 {$loading.isLoading ? 'animate-spin' : ''}" />
-			Generate New Digest
-		</button>
+		<div class="flex items-center gap-4">
+			<button onclick={refreshDigest} class="btn btn-primary" disabled={$loading.isLoading}>
+				<RefreshCw class="w-4 h-4 {$loading.isLoading ? 'animate-spin' : ''}" />
+				Generate New Digest
+			</button>
+
+			<!-- Mode indicator -->
+			<a
+				href="/settings"
+				class="flex items-center gap-2 px-3 py-2 rounded-lg border border-paper-300 dark:border-ink-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors group"
+				title="Change generation mode in settings"
+			>
+				<Settings class="w-4 h-4 text-ink-500 dark:text-paper-500 group-hover:text-blue-500" />
+				<span class="text-sm text-ink-600 dark:text-paper-400 group-hover:text-blue-500">
+					Mode:
+					<span class="font-semibold {$preferences.generationMode === 'cloudflare' ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'}">
+						{$preferences.generationMode === 'cloudflare' ? 'Cloudflare' : 'Server'}
+					</span>
+				</span>
+			</a>
+		</div>
 
 		<a href="/history" class="btn btn-secondary">
 			<Calendar class="w-4 h-4" />

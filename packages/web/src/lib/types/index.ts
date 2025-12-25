@@ -71,6 +71,7 @@ export interface UserPreferences {
 	deliveryTime: string;
 	channels: ('web' | 'rss' | 'email')[];
 	style: StylePreferences;
+	generationMode?: 'cloudflare' | 'server'; // Cloudflare = Durable Objects, Server = Hetzner
 }
 
 export interface TopicPreference {

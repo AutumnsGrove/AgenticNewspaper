@@ -4,6 +4,8 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://daily-clearing.m7jv4v7npb.workers.dev';
 
+// TODO: Once custom domain is set up, use: https://api.clearing.autumnsgrove.com
+
 interface ApiResponse<T> {
 	success: boolean;
 	data?: T;
@@ -14,9 +16,56 @@ interface ApiResponse<T> {
 }
 
 /**
- * Generate a new digest
+ * Generate digest using Cloudflare Durable Objects (fast, serverless)
  */
-export async function generateDigest(userId: string, test = false) {
+export async function generateDigestCloudflare(token: string, options?: {
+	topics?: string[];
+	lookbackHours?: number;
+	maxArticles?: number;
+}) {
+	const response = await fetch(`${API_BASE}/api/digests/generate`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`,
+		},
+		body: JSON.stringify(options || {}),
+	});
+
+	return response.json() as Promise<
+		ApiResponse<{
+			jobId: string;
+			status: string;
+			message: string;
+		}>
+	>;
+}
+
+/**
+ * Get generation status for Cloudflare mode
+ */
+export async function getGenerationStatus(token: string) {
+	const response = await fetch(`${API_BASE}/api/digests/generate/status`, {
+		headers: {
+			Authorization: `Bearer ${token}`,
+		},
+	});
+
+	return response.json() as Promise<
+		ApiResponse<{
+			status: string;
+			progress: number;
+			currentStep: string;
+			articlesFound: number;
+			articlesAnalyzed: number;
+		}>
+	>;
+}
+
+/**
+ * Generate digest using Hetzner ephemeral server (advanced processing)
+ */
+export async function generateDigestServer(userId: string, test = false) {
 	const response = await fetch(`${API_BASE}/api/jobs/generate`, {
 		method: 'POST',
 		headers: {

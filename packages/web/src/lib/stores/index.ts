@@ -71,7 +71,8 @@ function createPreferencesStore() {
 			technicalDepth: 3,
 			includeBiasAnalysis: true,
 			includeCrossConnections: true
-		}
+		},
+		generationMode: 'cloudflare' // Default to Cloudflare mode with Durable Objects
 	};
 
 	const { subscribe, set, update } = writable<UserPreferences>(defaultPreferences);

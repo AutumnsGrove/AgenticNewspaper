@@ -11,7 +11,9 @@
 		Save,
 		RotateCcw,
 		Moon,
-		Sun
+		Sun,
+		Cloud,
+		Server
 	} from 'lucide-svelte';
 	import type { TopicPreference, StylePreferences } from '$types';
 
@@ -21,6 +23,7 @@
 	let deliveryTime = $state($preferences.deliveryTime);
 	let channels = $state<('web' | 'rss' | 'email')[]>([...$preferences.channels]);
 	let style = $state<StylePreferences>({ ...$preferences.style });
+	let generationMode = $state<'cloudflare' | 'server'>($preferences.generationMode || 'cloudflare');
 
 	// New topic form
 	let newTopicName = $state('');
@@ -34,14 +37,16 @@
 			deliveryFrequency,
 			deliveryTime,
 			channels,
-			style
+			style,
+			generationMode
 		}) !==
 			JSON.stringify({
 				topics: $preferences.topics,
 				deliveryFrequency: $preferences.deliveryFrequency,
 				deliveryTime: $preferences.deliveryTime,
 				channels: $preferences.channels,
-				style: $preferences.style
+				style: $preferences.style,
+				generationMode: $preferences.generationMode
 			})
 	);
 
@@ -108,7 +113,8 @@
 				deliveryFrequency,
 				deliveryTime,
 				channels,
-				style
+				style,
+				generationMode
 			});
 
 			// TODO: Save to API
@@ -128,6 +134,7 @@
 		deliveryTime = $preferences.deliveryTime;
 		channels = [...$preferences.channels];
 		style = { ...$preferences.style };
+		generationMode = $preferences.generationMode || 'cloudflare';
 	}
 </script>
 
@@ -167,6 +174,92 @@
 					<Sun class="w-5 h-5 text-ink-600" />
 					<span class="text-sm font-medium text-ink-600">Light</span>
 				{/if}
+			</button>
+		</div>
+	</section>
+
+	<!-- Generation Mode Section -->
+	<section class="mb-12">
+		<h2 class="text-2xl font-serif font-bold text-ink-900 dark:text-paper-100 mb-4">
+			Generation Mode
+		</h2>
+		<p class="text-ink-600 dark:text-paper-400 mb-4">
+			Choose how digests are generated
+		</p>
+
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<!-- Cloudflare Mode -->
+			<button
+				onclick={() => (generationMode = 'cloudflare')}
+				class="p-6 rounded-lg border-2 transition-all text-left {generationMode === 'cloudflare'
+					? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+					: 'border-paper-300 dark:border-ink-700 hover:border-blue-300 dark:hover:border-blue-700'}"
+			>
+				<div class="flex items-center gap-3 mb-3">
+					<Cloud
+						class="w-6 h-6 {generationMode === 'cloudflare' ? 'text-blue-500' : 'text-ink-600 dark:text-paper-400'}"
+					/>
+					<span
+						class="text-lg font-semibold {generationMode === 'cloudflare' ? 'text-blue-500' : 'text-ink-900 dark:text-paper-100'}"
+					>
+						Cloudflare
+					</span>
+					{#if generationMode === 'cloudflare'}
+						<span
+							class="ml-auto px-2 py-1 text-xs font-medium bg-blue-500 text-white rounded"
+						>
+							Active
+						</span>
+					{/if}
+				</div>
+				<p class="text-sm text-ink-600 dark:text-paper-400">
+					Fast, serverless generation using Durable Objects. Runs entirely on Cloudflare's edge
+					network.
+				</p>
+				<div class="mt-3 flex items-center gap-2 text-xs text-ink-500 dark:text-paper-500">
+					<span>⚡ Ultra-fast</span>
+					<span>•</span>
+					<span>💰 Low cost</span>
+					<span>•</span>
+					<span>🌍 Global</span>
+				</div>
+			</button>
+
+			<!-- Server Mode -->
+			<button
+				onclick={() => (generationMode = 'server')}
+				class="p-6 rounded-lg border-2 transition-all text-left {generationMode === 'server'
+					? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+					: 'border-paper-300 dark:border-ink-700 hover:border-purple-300 dark:hover:border-purple-700'}"
+			>
+				<div class="flex items-center gap-3 mb-3">
+					<Server
+						class="w-6 h-6 {generationMode === 'server' ? 'text-purple-500' : 'text-ink-600 dark:text-paper-400'}"
+					/>
+					<span
+						class="text-lg font-semibold {generationMode === 'server' ? 'text-purple-500' : 'text-ink-900 dark:text-paper-100'}"
+					>
+						Dedicated Server
+					</span>
+					{#if generationMode === 'server'}
+						<span
+							class="ml-auto px-2 py-1 text-xs font-medium bg-purple-500 text-white rounded"
+						>
+							Active
+						</span>
+					{/if}
+				</div>
+				<p class="text-sm text-ink-600 dark:text-paper-400">
+					On-demand ephemeral servers for complex processing. Provisions a Hetzner VPS for each
+					digest.
+				</p>
+				<div class="mt-3 flex items-center gap-2 text-xs text-ink-500 dark:text-paper-500">
+					<span>🔧 Full control</span>
+					<span>•</span>
+					<span>🧠 Advanced processing</span>
+					<span>•</span>
+					<span>🚀 Self-destructs</span>
+				</div>
 			</button>
 		</div>
 	</section>

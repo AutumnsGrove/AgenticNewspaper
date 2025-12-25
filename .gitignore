@@ -20,3 +20,6 @@ packages/worker/.wrangler/
 .baseproject-backup-*/
 baseproject-update-summary.md
 .dev.vars
+
+# SvelteKit build output
+packages/web/.svelte-kit/
