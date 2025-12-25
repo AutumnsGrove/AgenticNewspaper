@@ -168,7 +168,7 @@ export class ParserService {
           : String(error),
         parseTimeMs: Date.now() - startTime,
       };
-      console.error(`Parse error:`, JSON.stringify(errorDetails));
+      console.error('Parse error:', errorDetails);
       this.stats.failureCount++;
       this.stats.totalTimeMs += Date.now() - startTime;
       return null;

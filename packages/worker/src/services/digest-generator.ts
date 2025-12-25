@@ -14,6 +14,7 @@ import { ParserService, type ParsedArticle } from './parser';
 // Constants
 // ============================================================================
 
+// User-configurable defaults (can be overridden via DigestGeneratorOptions)
 /** Default maximum articles to fetch per topic */
 const DEFAULT_MAX_ARTICLES_PER_TOPIC = 5;
 
@@ -23,17 +24,18 @@ const DEFAULT_MAX_CONCURRENT_PARSERS = 5;
 /** Default lookback period in days for article search */
 const DEFAULT_LOOKBACK_DAYS = 7;
 
-/** Default maximum tokens for search query generation */
-const SEARCH_QUERY_MAX_TOKENS = 100;
+// Internal LLM configuration (not user-configurable)
+/** Maximum tokens for search query generation */
+const LLM_SEARCH_QUERY_MAX_TOKENS = 100;
 
 /** Temperature for search query generation (lower = more deterministic) */
-const SEARCH_QUERY_TEMPERATURE = 0.3;
+const LLM_SEARCH_QUERY_TEMPERATURE = 0.3;
 
 /** Maximum tokens for topic synthesis */
-const SYNTHESIS_MAX_TOKENS = 1500;
+const LLM_SYNTHESIS_MAX_TOKENS = 1500;
 
 /** Temperature for synthesis (higher = more creative) */
-const SYNTHESIS_TEMPERATURE = 0.7;
+const LLM_SYNTHESIS_TEMPERATURE = 0.7;
 
 /** Maximum content preview length for article synthesis */
 const CONTENT_PREVIEW_LENGTH = 800;
@@ -303,8 +305,8 @@ export class DigestGenerator {
 
     try {
       const response = await this.llm.complete(prompt, {
-        maxTokens: SEARCH_QUERY_MAX_TOKENS,
-        temperature: SEARCH_QUERY_TEMPERATURE,
+        maxTokens: LLM_SEARCH_QUERY_MAX_TOKENS,
+        temperature: LLM_SEARCH_QUERY_TEMPERATURE,
       });
       return response.content.trim().replace(/^["']|["']$/g, '');
     } catch (error) {
@@ -384,8 +386,8 @@ export class DigestGenerator {
         .replace('{{articles_text}}', articlesText);
 
       const response = await this.llm.complete(prompt, {
-        maxTokens: SYNTHESIS_MAX_TOKENS,
-        temperature: SYNTHESIS_TEMPERATURE,
+        maxTokens: LLM_SYNTHESIS_MAX_TOKENS,
+        temperature: LLM_SYNTHESIS_TEMPERATURE,
         systemPrompt: PROMPTS.synthesisSystemPrompt,
       });
 

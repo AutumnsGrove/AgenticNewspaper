@@ -209,11 +209,18 @@ export class SearchService {
 
   /**
    * Search for articles on a specific topic with multiple queries.
-   * Uses rate limiting and retry logic to handle API limits gracefully.
+   *
+   * Implements automatic retry with exponential backoff for rate limits:
+   * - Up to {@link RATE_LIMIT_CONFIG.maxRetries} retry attempts per query (default: 3)
+   * - {@link RATE_LIMIT_CONFIG.maxTotalRetryMs}ms total retry timeout (default: 30s)
+   * - Runs up to {@link RATE_LIMIT_CONFIG.maxConcurrent} queries in parallel (default: 2)
+   * - Returns partial results if some queries fail (does not throw)
+   *
    * @param topicName - The topic to search for
    * @param keywords - Keywords to include in the search
    * @param options - Optional search configuration including excludeKeywords and preferPremiumSources
-   * @returns Array of unique, deduplicated search results sorted by relevance
+   * @returns Array of unique, deduplicated search results sorted by relevance.
+   *          Returns empty array if all queries fail.
    */
   async searchTopic(
     topicName: string,
@@ -338,7 +345,7 @@ export class SearchService {
             name: lastError.name,
             statusCode: (err as SearchError).statusCode,
           };
-          console.error(`Search query failed: ${query}`, JSON.stringify(errorDetails));
+          console.error(`Search query failed: ${query}`, errorDetails);
           return [];
         }
       }
