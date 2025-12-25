@@ -12,18 +12,19 @@ export const GET: RequestHandler = async ({ cookies, platform }) => {
 	const redirectUri = platform?.env?.GROVEAUTH_REDIRECT_URI || 'https://clearing.autumnsgrove.com/auth/callback';
 
 	// Store for callback verification
+	// Note: sameSite='none' required for OAuth flow across domains
 	cookies.set('auth_state', state, {
 		path: '/',
 		httpOnly: true,
 		secure: true,
-		sameSite: 'lax',
+		sameSite: 'none',
 		maxAge: 600 // 10 minutes
 	});
 	cookies.set('code_verifier', codeVerifier, {
 		path: '/',
 		httpOnly: true,
 		secure: true,
-		sameSite: 'lax',
+		sameSite: 'none',
 		maxAge: 600
 	});
 

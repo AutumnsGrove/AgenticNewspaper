@@ -27,17 +27,21 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/history" | "/settings";
+		RouteId(): "/" | "/auth" | "/auth/callback" | "/auth/login" | "/auth/logout" | "/history" | "/settings";
 		RouteParams(): {
 			
 		};
 		LayoutParams(): {
 			"/": Record<string, never>;
+			"/auth": Record<string, never>;
+			"/auth/callback": Record<string, never>;
+			"/auth/login": Record<string, never>;
+			"/auth/logout": Record<string, never>;
 			"/history": Record<string, never>;
 			"/settings": Record<string, never>
 		};
-		Pathname(): "/" | "/history" | "/history/" | "/settings" | "/settings/";
+		Pathname(): "/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/auth/login" | "/auth/login/" | "/auth/logout" | "/auth/logout/" | "/history" | "/history/" | "/settings" | "/settings/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): string & {};
+		Asset(): "/fonts/AtkinsonHyperlegible-Regular.ttf" | "/fonts/Calistoga-Regular.ttf" | "/fonts/Lexend-Regular.ttf" | "/fonts/Lora-Regular.ttf" | "/fonts/OpenDyslexic-Regular.otf" | string & {};
 	}
 }

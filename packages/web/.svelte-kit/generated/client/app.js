@@ -11,9 +11,9 @@ export const nodes = [
 export const server_loads = [];
 
 export const dictionary = {
-		"/": [2],
+		"/": [~2],
 		"/history": [3],
-		"/settings": [4]
+		"/settings": [~4]
 	};
 
 export const hooks = {

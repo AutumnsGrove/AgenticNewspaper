@@ -1,5 +1,18 @@
 {
-	"/": [],
+	"/": [
+		"src/routes/+page.server.ts"
+	],
+	"/auth/callback": [
+		"src/routes/auth/callback/+server.ts"
+	],
+	"/auth/login": [
+		"src/routes/auth/login/+server.ts"
+	],
+	"/auth/logout": [
+		"src/routes/auth/logout/+server.ts"
+	],
 	"/history": [],
-	"/settings": []
+	"/settings": [
+		"src/routes/settings/+page.server.ts"
+	]
 }

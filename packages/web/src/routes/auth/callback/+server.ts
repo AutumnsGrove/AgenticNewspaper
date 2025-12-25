@@ -17,8 +17,14 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 
 	// Verify state
 	const savedState = cookies.get('auth_state');
+	console.log('Callback state verification:', { receivedState: state, savedState });
+
+	if (!savedState) {
+		throw error(400, 'No saved state found - cookie may have expired or not been set');
+	}
+
 	if (state !== savedState) {
-		throw error(400, 'Invalid state parameter');
+		throw error(400, `State mismatch - received: ${state}, expected: ${savedState}`);
 	}
 
 	const codeVerifier = cookies.get('code_verifier');
