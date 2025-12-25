@@ -1,0 +1,81 @@
+/* Custom Font Faces */
+
+@font-face {
+	font-family: 'Lexend';
+	src: url('/fonts/Lexend-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Calistoga';
+	src: url('/fonts/Calistoga-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Lora';
+	src: url('/fonts/Lora-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Atkinson Hyperlegible';
+	src: url('/fonts/AtkinsonHyperlegible-Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'OpenDyslexic';
+	src: url('/fonts/OpenDyslexic-Regular.otf') format('opentype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* Font CSS Variables */
+:root {
+	--font-body: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--font-heading: 'Calistoga', Georgia, serif;
+}
+
+/* Body font options */
+:root[data-body-font='lexend'] {
+	--font-body: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+:root[data-body-font='atkinson'] {
+	--font-body: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+:root[data-body-font='lora'] {
+	--font-body: 'Lora', Georgia, serif;
+}
+
+:root[data-body-font='opendyslexic'] {
+	--font-body: 'OpenDyslexic', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Heading font options */
+:root[data-heading-font='calistoga'] {
+	--font-heading: 'Calistoga', Georgia, serif;
+}
+
+:root[data-heading-font='lexend'] {
+	--font-heading: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+:root[data-heading-font='lora'] {
+	--font-heading: 'Lora', Georgia, serif;
+}
+
+:root[data-heading-font='atkinson'] {
+	--font-heading: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

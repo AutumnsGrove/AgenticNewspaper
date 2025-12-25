@@ -72,7 +72,9 @@ function createPreferencesStore() {
 			includeBiasAnalysis: true,
 			includeCrossConnections: true
 		},
-		generationMode: 'cloudflare' // Default to Cloudflare mode with Durable Objects
+		generationMode: 'cloudflare', // Default to Cloudflare mode with Durable Objects
+		bodyFont: 'lexend', // Default body font
+		headingFont: 'calistoga' // Default heading font
 	};
 
 	const { subscribe, set, update } = writable<UserPreferences>(defaultPreferences);

@@ -1,12 +1,29 @@
 <script lang="ts">
 	import '../app.css';
+	import '$lib/styles/fonts.css';
 	import { onMount } from 'svelte';
-	import { theme, loading, error } from '$stores';
+	import { theme, loading, error, preferences } from '$stores';
 
 	let { children } = $props();
 
 	onMount(() => {
 		theme.init();
+
+		// Apply font preferences
+		const bodyFont = $preferences.bodyFont || 'lexend';
+		const headingFont = $preferences.headingFont || 'calistoga';
+		document.documentElement.setAttribute('data-body-font', bodyFont);
+		document.documentElement.setAttribute('data-heading-font', headingFont);
+	});
+
+	// Watch for font changes
+	$effect(() => {
+		if (typeof document !== 'undefined') {
+			const bodyFont = $preferences.bodyFont || 'lexend';
+			const headingFont = $preferences.headingFont || 'calistoga';
+			document.documentElement.setAttribute('data-body-font', bodyFont);
+			document.documentElement.setAttribute('data-heading-font', headingFont);
+		}
 	});
 </script>
 

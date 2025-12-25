@@ -72,6 +72,8 @@ export interface UserPreferences {
 	channels: ('web' | 'rss' | 'email')[];
 	style: StylePreferences;
 	generationMode?: 'cloudflare' | 'server'; // Cloudflare = Durable Objects, Server = Hetzner
+	bodyFont?: 'lexend' | 'atkinson' | 'lora' | 'opendyslexic';
+	headingFont?: 'calistoga' | 'lexend' | 'lora' | 'atkinson';
 }
 
 export interface TopicPreference {

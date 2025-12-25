@@ -29,6 +29,8 @@
 	let channels = $state<('web' | 'rss' | 'email')[]>([...$preferences.channels]);
 	let style = $state<StylePreferences>({ ...$preferences.style });
 	let generationMode = $state<'cloudflare' | 'server'>($preferences.generationMode || 'cloudflare');
+	let bodyFont = $state<'lexend' | 'atkinson' | 'lora' | 'opendyslexic'>($preferences.bodyFont || 'lexend');
+	let headingFont = $state<'calistoga' | 'lexend' | 'lora' | 'atkinson'>($preferences.headingFont || 'calistoga');
 
 	// New topic form
 	let newTopicName = $state('');
@@ -43,7 +45,9 @@
 			deliveryTime,
 			channels,
 			style,
-			generationMode
+			generationMode,
+			bodyFont,
+			headingFont
 		}) !==
 			JSON.stringify({
 				topics: $preferences.topics,
@@ -51,7 +55,9 @@
 				deliveryTime: $preferences.deliveryTime,
 				channels: $preferences.channels,
 				style: $preferences.style,
-				generationMode: $preferences.generationMode
+				generationMode: $preferences.generationMode,
+				bodyFont: $preferences.bodyFont,
+				headingFont: $preferences.headingFont
 			})
 	);
 
@@ -119,7 +125,9 @@
 				deliveryTime,
 				channels,
 				style,
-				generationMode
+				generationMode,
+				bodyFont,
+				headingFont
 			});
 
 			// TODO: Save to API
@@ -140,6 +148,8 @@
 		channels = [...$preferences.channels];
 		style = { ...$preferences.style };
 		generationMode = $preferences.generationMode || 'cloudflare';
+		bodyFont = $preferences.bodyFont || 'lexend';
+		headingFont = $preferences.headingFont || 'calistoga';
 	}
 </script>
 
@@ -180,6 +190,146 @@
 					<span class="text-sm font-medium text-ink-600">Light</span>
 				{/if}
 			</button>
+		</div>
+	</section>
+
+	<!-- Typography Section -->
+	<section class="mb-12">
+		<h2 class="text-2xl font-serif font-bold text-ink-900 dark:text-paper-100 mb-4">
+			Typography
+		</h2>
+		<p class="text-ink-600 dark:text-paper-400 mb-6">
+			Choose fonts for body text and headings
+		</p>
+
+		<div class="space-y-6">
+			<!-- Body Font -->
+			<div>
+				<label class="block text-sm font-medium text-ink-700 dark:text-paper-300 mb-3">
+					Body Font
+				</label>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+					<button
+						onclick={() => (bodyFont = 'lexend')}
+						class="p-4 rounded-lg border-2 transition-all {bodyFont === 'lexend'
+							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-blue-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Lexend', sans-serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {bodyFont === 'lexend' ? 'text-blue-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Lexend
+							</div>
+						</div>
+					</button>
+
+					<button
+						onclick={() => (bodyFont = 'atkinson')}
+						class="p-4 rounded-lg border-2 transition-all {bodyFont === 'atkinson'
+							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-blue-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Atkinson Hyperlegible', sans-serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {bodyFont === 'atkinson' ? 'text-blue-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Atkinson
+							</div>
+						</div>
+					</button>
+
+					<button
+						onclick={() => (bodyFont = 'lora')}
+						class="p-4 rounded-lg border-2 transition-all {bodyFont === 'lora'
+							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-blue-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Lora', serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {bodyFont === 'lora' ? 'text-blue-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Lora
+							</div>
+						</div>
+					</button>
+
+					<button
+						onclick={() => (bodyFont = 'opendyslexic')}
+						class="p-4 rounded-lg border-2 transition-all {bodyFont === 'opendyslexic'
+							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-blue-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'OpenDyslexic', sans-serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {bodyFont === 'opendyslexic' ? 'text-blue-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								OpenDyslexic
+							</div>
+						</div>
+					</button>
+				</div>
+			</div>
+
+			<!-- Heading Font -->
+			<div>
+				<label class="block text-sm font-medium text-ink-700 dark:text-paper-300 mb-3">
+					Heading Font
+				</label>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+					<button
+						onclick={() => (headingFont = 'calistoga')}
+						class="p-4 rounded-lg border-2 transition-all {headingFont === 'calistoga'
+							? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-purple-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Calistoga', serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {headingFont === 'calistoga' ? 'text-purple-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Calistoga
+							</div>
+						</div>
+					</button>
+
+					<button
+						onclick={() => (headingFont = 'lexend')}
+						class="p-4 rounded-lg border-2 transition-all {headingFont === 'lexend'
+							? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-purple-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Lexend', sans-serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {headingFont === 'lexend' ? 'text-purple-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Lexend
+							</div>
+						</div>
+					</button>
+
+					<button
+						onclick={() => (headingFont = 'lora')}
+						class="p-4 rounded-lg border-2 transition-all {headingFont === 'lora'
+							? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-purple-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Lora', serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {headingFont === 'lora' ? 'text-purple-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Lora
+							</div>
+						</div>
+					</button>
+
+					<button
+						onclick={() => (headingFont = 'atkinson')}
+						class="p-4 rounded-lg border-2 transition-all {headingFont === 'atkinson'
+							? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+							: 'border-paper-300 dark:border-ink-700 hover:border-purple-300'}"
+					>
+						<div class="text-center">
+							<div style="font-family: 'Atkinson Hyperlegible', sans-serif;" class="text-lg mb-1">Aa</div>
+							<div class="text-xs {headingFont === 'atkinson' ? 'text-purple-500 font-medium' : 'text-ink-600 dark:text-paper-400'}">
+								Atkinson
+							</div>
+						</div>
+					</button>
+				</div>
+			</div>
 		</div>
 	</section>
 
@@ -253,7 +403,7 @@
 					<span
 						class="text-lg font-semibold {generationMode === 'server' ? 'text-purple-500' : 'text-ink-900 dark:text-paper-100'}"
 					>
-						Dedicated Server
+						Server
 					</span>
 					{#if generationMode === 'server'}
 						<span
