@@ -3,13 +3,16 @@ Tests for the Bias Agent.
 """
 
 import pytest
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.agents.tier2_reasoning.bias_agent import (
-    BiasAgent,
+from src.agents.tier2_reasoning.bias_agent import BiasAgent
+from src.models.article import (
     BiasAnalysis,
     BiasDirection,
+    ParsedArticle,
 )
+from src.providers.base import LLMResponse
 
 
 # ============================================================================
@@ -25,11 +28,11 @@ class TestBiasAnalysis:
         analysis = BiasAnalysis(
             bias_score=0.35,
             bias_direction=BiasDirection.CENTER_LEFT,
-            confidence=0.75,
+            bias_confidence=0.75,
         )
         assert analysis.bias_score == 0.35
         assert analysis.bias_direction == BiasDirection.CENTER_LEFT
-        assert analysis.confidence == 0.75
+        assert analysis.bias_confidence == 0.75
 
     def test_analysis_with_details(self):
         """Test analysis with full details."""
@@ -87,7 +90,7 @@ class TestBiasDirection:
 
     def test_center_left_direction(self):
         """Test center-left bias direction."""
-        assert BiasDirection.CENTER_LEFT.value == "center-left"
+        assert BiasDirection.CENTER_LEFT.value == "center_left"
 
     def test_center_direction(self):
         """Test center bias direction."""
@@ -95,7 +98,7 @@ class TestBiasDirection:
 
     def test_center_right_direction(self):
         """Test center-right bias direction."""
-        assert BiasDirection.CENTER_RIGHT.value == "center-right"
+        assert BiasDirection.CENTER_RIGHT.value == "center_right"
 
     def test_right_direction(self):
         """Test right bias direction."""
@@ -121,16 +124,31 @@ class TestBiasAgentInit:
         assert agent.provider == mock_provider
 
     def test_init_with_config(self):
-        """Test initialization with configuration."""
+        """Test initialization - config is handled through provider."""
         mock_provider = MagicMock()
-        config = {"sensitivity": "high", "detect_loaded_language": True}
-        agent = BiasAgent(provider=mock_provider, config=config)
-        assert agent.config == config
+        # BiasAgent doesn't take config directly, just provider
+        agent = BiasAgent(provider=mock_provider)
+        assert agent.provider == mock_provider
 
 
 # ============================================================================
 # Bias Agent Analysis Tests
 # ============================================================================
+
+
+def _make_article(
+    title: str = "Test Article",
+    content: str = "Test content",
+    source: str = "test.com",
+) -> ParsedArticle:
+    """Helper to create test articles."""
+    return ParsedArticle(
+        article_id="test-001",
+        url=f"https://{source}/article",
+        title=title,
+        content=content,
+        source=source,
+    )
 
 
 class TestBiasAgentAnalyze:
@@ -140,7 +158,8 @@ class TestBiasAgentAnalyze:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -151,41 +170,53 @@ class TestBiasAgentAnalyze:
     @pytest.fixture
     def neutral_article(self):
         """Create a neutral article."""
-        return {
-            "title": "Study Finds Mixed Results on Policy",
-            "content": """
+        return _make_article(
+            title="Study Finds Mixed Results on Policy",
+            content="""
             A new study examines the effects of the policy from multiple angles.
             Supporters point to economic benefits, while critics highlight
             environmental concerns. The researchers note that both perspectives
             have merit and call for further investigation.
             """,
-            "source": "reuters.com",
-        }
+            source="reuters.com",
+        )
 
     @pytest.fixture
     def biased_article(self):
         """Create a biased article."""
-        return {
-            "title": "Radical New Policy Threatens Economy",
-            "content": """
+        return _make_article(
+            title="Radical New Policy Threatens Economy",
+            content="""
             The dangerous new policy pushed by extremists will destroy jobs
             and devastate communities. Experts warn of catastrophic consequences
             while radical activists ignore the evidence. This socialist agenda
             must be stopped before it's too late.
             """,
-            "source": "opinion.example.com",
-        }
+            source="opinion.example.com",
+        )
+
+    def _make_response(self, data: dict) -> LLMResponse:
+        """Create a mock LLM response with JSON content."""
+        return LLMResponse(
+            content=json.dumps(data),
+            model="test-model",
+            provider="test",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.001,
+            response_time_seconds=1.0,
+        )
 
     @pytest.mark.asyncio
     async def test_analyze_returns_analysis(self, agent, mock_provider, neutral_article):
         """Test that analyze returns a BiasAnalysis."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.5,
             "bias_direction": "center",
             "loaded_language": [],
             "missing_perspectives": [],
-            "confidence": 0.8,
-        }
+            "bias_confidence": 0.8,
+        })
 
         analysis = await agent.analyze(neutral_article)
         assert isinstance(analysis, BiasAnalysis)
@@ -193,13 +224,13 @@ class TestBiasAgentAnalyze:
     @pytest.mark.asyncio
     async def test_analyze_neutral_content(self, agent, mock_provider, neutral_article):
         """Test analysis of neutral content."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.48,
-            "bias_direction": "center",
+            "bias_direction": "CENTER",
             "loaded_language": [],
             "missing_perspectives": [],
-            "confidence": 0.85,
-        }
+            "bias_confidence": 0.85,
+        })
 
         analysis = await agent.analyze(neutral_article)
         assert 0.4 <= analysis.bias_score <= 0.6
@@ -208,15 +239,15 @@ class TestBiasAgentAnalyze:
     @pytest.mark.asyncio
     async def test_analyze_biased_content(self, agent, mock_provider, biased_article):
         """Test analysis of biased content."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.85,
-            "bias_direction": "right",
+            "bias_direction": "RIGHT",
             "loaded_language": ["radical", "extremists", "dangerous", "socialist"],
             "missing_perspectives": ["Policy supporters", "Academic research"],
             "skeptics_corner": "This article uses inflammatory language and presents only one viewpoint.",
             "red_flags": ["Emotionally charged language", "No cited sources"],
-            "confidence": 0.9,
-        }
+            "bias_confidence": 0.9,
+        })
 
         analysis = await agent.analyze(biased_article)
         assert analysis.bias_score > 0.7
@@ -226,12 +257,12 @@ class TestBiasAgentAnalyze:
     @pytest.mark.asyncio
     async def test_analyze_detects_loaded_language(self, agent, mock_provider, biased_article):
         """Test that analysis detects loaded language."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.8,
-            "bias_direction": "right",
+            "bias_direction": "RIGHT",
             "loaded_language": ["radical", "extremists", "dangerous", "socialist", "catastrophic"],
-            "confidence": 0.85,
-        }
+            "bias_confidence": 0.85,
+        })
 
         analysis = await agent.analyze(biased_article)
         assert "radical" in analysis.loaded_language
@@ -240,16 +271,16 @@ class TestBiasAgentAnalyze:
     @pytest.mark.asyncio
     async def test_analyze_identifies_missing_perspectives(self, agent, mock_provider, biased_article):
         """Test that analysis identifies missing perspectives."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.8,
-            "bias_direction": "right",
+            "bias_direction": "RIGHT",
             "missing_perspectives": [
                 "Perspectives from policy supporters",
                 "Academic or expert analysis",
                 "Historical context",
             ],
-            "confidence": 0.85,
-        }
+            "bias_confidence": 0.85,
+        })
 
         analysis = await agent.analyze(biased_article)
         assert len(analysis.missing_perspectives) > 0
@@ -267,7 +298,8 @@ class TestSkepticsCorner:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -275,22 +307,34 @@ class TestSkepticsCorner:
         """Create a Bias Agent instance."""
         return BiasAgent(provider=mock_provider)
 
+    def _make_response(self, data: dict) -> LLMResponse:
+        """Create a mock LLM response with JSON content."""
+        return LLMResponse(
+            content=json.dumps(data),
+            model="test-model",
+            provider="test",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.001,
+            response_time_seconds=1.0,
+        )
+
     @pytest.mark.asyncio
     async def test_generates_skeptics_corner(self, agent, mock_provider):
         """Test that skeptic's corner is generated for concerning content."""
-        article = {
-            "title": "Miracle Cure Discovered",
-            "content": "Scientists claim to have found a miracle cure...",
-            "source": "news.example.com",
-        }
+        article = _make_article(
+            title="Miracle Cure Discovered",
+            content="Scientists claim to have found a miracle cure...",
+            source="news.example.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.6,
-            "bias_direction": "center",
+            "bias_direction": "CENTER",
             "skeptics_corner": "Claims of 'miracle cures' should be viewed with skepticism until peer-reviewed studies confirm the results.",
             "red_flags": ["Unverified claims", "Sensationalized headline"],
-            "confidence": 0.75,
-        }
+            "bias_confidence": 0.75,
+        })
 
         analysis = await agent.analyze(article)
         assert analysis.skeptics_corner is not None
@@ -299,19 +343,19 @@ class TestSkepticsCorner:
     @pytest.mark.asyncio
     async def test_no_skeptics_corner_for_neutral(self, agent, mock_provider):
         """Test that neutral content may not need skeptic's corner."""
-        article = {
-            "title": "Research Study Published",
-            "content": "Researchers published findings in peer-reviewed journal...",
-            "source": "nature.com",
-        }
+        article = _make_article(
+            title="Research Study Published",
+            content="Researchers published findings in peer-reviewed journal...",
+            source="nature.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.5,
-            "bias_direction": "center",
-            "skeptics_corner": None,
+            "bias_direction": "CENTER",
+            "skeptics_corner": "",
             "red_flags": [],
-            "confidence": 0.9,
-        }
+            "bias_confidence": 0.9,
+        })
 
         analysis = await agent.analyze(article)
         # May or may not have skeptic's corner
@@ -330,7 +374,8 @@ class TestRedFlags:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -338,21 +383,33 @@ class TestRedFlags:
         """Create a Bias Agent instance."""
         return BiasAgent(provider=mock_provider)
 
+    def _make_response(self, data: dict) -> LLMResponse:
+        """Create a mock LLM response with JSON content."""
+        return LLMResponse(
+            content=json.dumps(data),
+            model="test-model",
+            provider="test",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.001,
+            response_time_seconds=1.0,
+        )
+
     @pytest.mark.asyncio
     async def test_detects_unsourced_claims(self, agent, mock_provider):
         """Test detection of unsourced claims."""
-        article = {
-            "title": "Experts Say X",
-            "content": "Experts say that X is true. Studies show Y.",
-            "source": "blog.example.com",
-        }
+        article = _make_article(
+            title="Experts Say X",
+            content="Experts say that X is true. Studies show Y.",
+            source="blog.example.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.6,
-            "bias_direction": "center",
+            "bias_direction": "CENTER",
             "red_flags": ["Vague attribution ('experts say')", "No specific sources cited"],
-            "confidence": 0.7,
-        }
+            "bias_confidence": 0.7,
+        })
 
         analysis = await agent.analyze(article)
         assert any("source" in flag.lower() for flag in analysis.red_flags)
@@ -360,18 +417,18 @@ class TestRedFlags:
     @pytest.mark.asyncio
     async def test_detects_emotional_manipulation(self, agent, mock_provider):
         """Test detection of emotional manipulation."""
-        article = {
-            "title": "Shocking Truth Revealed",
-            "content": "You won't believe what happened. This will make you furious.",
-            "source": "clickbait.example.com",
-        }
+        article = _make_article(
+            title="Shocking Truth Revealed",
+            content="You won't believe what happened. This will make you furious.",
+            source="clickbait.example.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.65,
-            "bias_direction": "unknown",
+            "bias_direction": "UNKNOWN",
             "red_flags": ["Clickbait headline", "Emotional manipulation tactics"],
-            "confidence": 0.8,
-        }
+            "bias_confidence": 0.8,
+        })
 
         analysis = await agent.analyze(article)
         assert len(analysis.red_flags) > 0
@@ -389,7 +446,8 @@ class TestBiasAgentErrors:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -397,12 +455,24 @@ class TestBiasAgentErrors:
         """Create a Bias Agent instance."""
         return BiasAgent(provider=mock_provider)
 
+    def _make_response(self, data: dict) -> LLMResponse:
+        """Create a mock LLM response with JSON content."""
+        return LLMResponse(
+            content=json.dumps(data),
+            model="test-model",
+            provider="test",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.001,
+            response_time_seconds=1.0,
+        )
+
     @pytest.mark.asyncio
     async def test_handles_provider_error(self, agent, mock_provider):
         """Test handling of provider errors."""
-        mock_provider.complete_json.side_effect = Exception("API Error")
+        mock_provider.complete.side_effect = Exception("API Error")
 
-        article = {"title": "Test", "content": "Content", "source": "test.com"}
+        article = _make_article()
 
         with pytest.raises(Exception):
             await agent.analyze(article)
@@ -410,13 +480,13 @@ class TestBiasAgentErrors:
     @pytest.mark.asyncio
     async def test_handles_invalid_direction(self, agent, mock_provider):
         """Test handling of invalid bias direction."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.5,
             "bias_direction": "invalid-direction",
-            "confidence": 0.5,
-        }
+            "bias_confidence": 0.5,
+        })
 
-        article = {"title": "Test", "content": "Content", "source": "test.com"}
+        article = _make_article()
         analysis = await agent.analyze(article)
         # Should default to unknown
         assert analysis.bias_direction == BiasDirection.UNKNOWN
@@ -434,7 +504,8 @@ class TestFactualClaims:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -442,24 +513,37 @@ class TestFactualClaims:
         """Create a Bias Agent instance."""
         return BiasAgent(provider=mock_provider)
 
+    def _make_response(self, data: dict) -> LLMResponse:
+        """Create a mock LLM response with JSON content."""
+        return LLMResponse(
+            content=json.dumps(data),
+            model="test-model",
+            provider="test",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.001,
+            response_time_seconds=1.0,
+        )
+
     @pytest.mark.asyncio
     async def test_extracts_factual_claims(self, agent, mock_provider):
-        """Test extraction of factual claims."""
-        article = {
-            "title": "Report Shows 50% Increase",
-            "content": "The report shows a 50% increase in X and 30% decrease in Y.",
-            "source": "news.example.com",
-        }
+        """Test extraction of verifiable claims."""
+        article = _make_article(
+            title="Report Shows 50% Increase",
+            content="The report shows a 50% increase in X and 30% decrease in Y.",
+            source="news.example.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = self._make_response({
             "bias_score": 0.5,
-            "bias_direction": "center",
-            "factual_claims": [
-                {"claim": "50% increase in X", "verifiable": True},
-                {"claim": "30% decrease in Y", "verifiable": True},
+            "bias_direction": "CENTER",
+            "verifiable_claims": [
+                "50% increase in X",
+                "30% decrease in Y",
             ],
-            "confidence": 0.8,
-        }
+            "bias_confidence": 0.8,
+        })
 
         analysis = await agent.analyze(article)
-        assert len(analysis.factual_claims) >= 0  # May or may not extract
+        # BiasAnalysis has verifiable_claims, not factual_claims
+        assert len(analysis.verifiable_claims) >= 0
