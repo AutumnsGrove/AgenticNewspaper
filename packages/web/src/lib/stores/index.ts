@@ -11,8 +11,21 @@ function createThemeStore() {
 
 	return {
 		subscribe,
-		toggle: () => update((theme) => (theme === 'light' ? 'dark' : 'light')),
-		set: (theme: 'light' | 'dark') => set(theme),
+		toggle: () => update((theme) => {
+			const newTheme = theme === 'light' ? 'dark' : 'light';
+			if (typeof window !== 'undefined') {
+				localStorage.setItem('theme', newTheme);
+				document.documentElement.classList.toggle('dark', newTheme === 'dark');
+			}
+			return newTheme;
+		}),
+		set: (theme: 'light' | 'dark') => {
+			set(theme);
+			if (typeof window !== 'undefined') {
+				localStorage.setItem('theme', theme);
+				document.documentElement.classList.toggle('dark', theme === 'dark');
+			}
+		},
 		init: () => {
 			if (typeof window !== 'undefined') {
 				const saved = localStorage.getItem('theme');

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Masthead, BifoldLayout, DigestStats } from '$components';
-	import { currentDigest, loading } from '$stores';
+	import { currentDigest, loading, error } from '$stores';
 	import { RefreshCw, Calendar, ChevronRight } from 'lucide-svelte';
 	import type { Digest } from '$types';
+	import { generateTestDigest } from '$lib/api';
 
 	// Mock data for development
 	const mockDigest: Digest = {
@@ -121,10 +122,34 @@
 	let digest = $derived($currentDigest || mockDigest);
 
 	async function refreshDigest() {
-		loading.start('Generating fresh digest...');
-		// TODO: Call API to generate new digest
-		await new Promise((resolve) => setTimeout(resolve, 2000));
-		loading.stop();
+		try {
+			loading.start('Provisioning ephemeral server...');
+
+			// Call the Cloudflare Worker to provision a Hetzner server
+			const result = await generateTestDigest();
+
+			if (result.success) {
+				loading.start(`Server provisioned! Job ID: ${result.data?.jobId.slice(0, 8)}...`);
+				loading.progress(50, 'Server booting and generating digest...');
+
+				// TODO: Poll job status and update when complete
+				// For now, just show success
+				await new Promise((resolve) => setTimeout(resolve, 3000));
+				loading.progress(100, 'Digest generated!');
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+				loading.stop();
+
+				// Show success message
+				console.log('🎉 Digest generation started!', result.data);
+				alert(`✅ Digest generation started!\n\nJob ID: ${result.data?.jobId}\nServer: ${result.data?.serverId}\nIP: ${result.data?.serverIp}\n\nThe server is now generating your digest. This typically takes 30-60 seconds.`);
+			} else {
+				error.set(result.error?.message || 'Failed to start digest generation');
+				loading.stop();
+			}
+		} catch (err) {
+			error.set('Failed to connect to API');
+			loading.stop();
+		}
 	}
 </script>
 
@@ -147,7 +172,7 @@
 			Generate New Digest
 		</button>
 
-		<a href="/digest/history" class="btn btn-secondary">
+		<a href="/history" class="btn btn-secondary">
 			<Calendar class="w-4 h-4" />
 			View History
 		</a>

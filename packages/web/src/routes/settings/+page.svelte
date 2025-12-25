@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { preferences, user, loading, error } from '$stores';
+	import { preferences, user, loading, error, theme } from '$stores';
 	import {
 		ArrowLeft,
 		Plus,
@@ -9,7 +9,9 @@
 		Rss,
 		Globe,
 		Save,
-		RotateCcw
+		RotateCcw,
+		Moon,
+		Sun
 	} from 'lucide-svelte';
 	import type { TopicPreference, StylePreferences } from '$types';
 
@@ -141,6 +143,33 @@
 			Customize your news digest preferences
 		</p>
 	</header>
+
+	<!-- Appearance Section -->
+	<section class="mb-12">
+		<h2 class="text-2xl font-serif font-bold text-ink-900 dark:text-paper-100 mb-4">Appearance</h2>
+
+		<div class="flex items-center justify-between p-4 bg-paper-50 dark:bg-ink-900 rounded-lg border border-paper-200 dark:border-ink-800">
+			<div>
+				<span class="font-medium text-ink-900 dark:text-paper-100 block mb-1">Dark Mode</span>
+				<span class="text-sm text-ink-500 dark:text-paper-500">Use dark color scheme</span>
+			</div>
+			<button
+				onclick={() => theme.toggle()}
+				class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all {$theme === 'dark'
+					? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+					: 'border-paper-300 dark:border-ink-700'}"
+				aria-label="Toggle dark mode"
+			>
+				{#if $theme === 'dark'}
+					<Moon class="w-5 h-5 text-blue-500" />
+					<span class="text-sm font-medium text-blue-500">Dark</span>
+				{:else}
+					<Sun class="w-5 h-5 text-ink-600" />
+					<span class="text-sm font-medium text-ink-600">Light</span>
+				{/if}
+			</button>
+		</div>
+	</section>
 
 	<!-- Topics Section -->
 	<section class="mb-12">
