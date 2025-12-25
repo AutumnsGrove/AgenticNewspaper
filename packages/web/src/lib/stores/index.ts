@@ -79,20 +79,66 @@ function createPreferencesStore() {
 
 	const { subscribe, set, update } = writable<UserPreferences>(defaultPreferences);
 
+	// Helper to save to localStorage
+	const saveToStorage = (prefs: UserPreferences) => {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('preferences', JSON.stringify(prefs));
+		}
+	};
+
 	return {
 		subscribe,
-		set,
-		update: (data: Partial<UserPreferences>) => update((prefs) => ({ ...prefs, ...data })),
+		set: (prefs: UserPreferences) => {
+			set(prefs);
+			saveToStorage(prefs);
+		},
+		update: (data: Partial<UserPreferences>) => {
+			update((prefs) => {
+				const newPrefs = { ...prefs, ...data };
+				saveToStorage(newPrefs);
+				return newPrefs;
+			});
+		},
 		addTopic: (topic: UserPreferences['topics'][0]) =>
-			update((prefs) => ({ ...prefs, topics: [...prefs.topics, topic] })),
+			update((prefs) => {
+				const newPrefs = { ...prefs, topics: [...prefs.topics, topic] };
+				saveToStorage(newPrefs);
+				return newPrefs;
+			}),
 		removeTopic: (name: string) =>
-			update((prefs) => ({ ...prefs, topics: prefs.topics.filter((t) => t.name !== name) })),
+			update((prefs) => {
+				const newPrefs = { ...prefs, topics: prefs.topics.filter((t) => t.name !== name) };
+				saveToStorage(newPrefs);
+				return newPrefs;
+			}),
 		toggleTopic: (name: string) =>
-			update((prefs) => ({
-				...prefs,
-				topics: prefs.topics.map((t) => (t.name === name ? { ...t, enabled: !t.enabled } : t))
-			})),
-		reset: () => set(defaultPreferences)
+			update((prefs) => {
+				const newPrefs = {
+					...prefs,
+					topics: prefs.topics.map((t) => (t.name === name ? { ...t, enabled: !t.enabled } : t))
+				};
+				saveToStorage(newPrefs);
+				return newPrefs;
+			}),
+		reset: () => {
+			set(defaultPreferences);
+			saveToStorage(defaultPreferences);
+		},
+		init: () => {
+			if (typeof window !== 'undefined') {
+				const saved = localStorage.getItem('preferences');
+				if (saved) {
+					try {
+						const parsed = JSON.parse(saved);
+						set(parsed);
+					} catch (e) {
+						console.error('Failed to parse saved preferences:', e);
+						set(defaultPreferences);
+						saveToStorage(defaultPreferences);
+					}
+				}
+			}
+		}
 	};
 }
 

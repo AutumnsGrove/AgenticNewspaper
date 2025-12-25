@@ -8,6 +8,7 @@
 
 	onMount(() => {
 		theme.init();
+		preferences.init();
 
 		// Apply font preferences
 		const bodyFont = $preferences.bodyFont || 'lexend';
