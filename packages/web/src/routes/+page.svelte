@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { Masthead, BifoldLayout, DigestStats } from '$components';
 	import { currentDigest, loading, error, preferences } from '$stores';
-	import { RefreshCw, Calendar, ChevronRight, Settings } from 'lucide-svelte';
+	import { RefreshCw, Calendar, ChevronRight, Settings, LogIn, LogOut } from 'lucide-svelte';
 	import type { Digest } from '$types';
 	import { generateTestDigest } from '$lib/api';
+
+	let { data } = $props();
 
 	// Mock data for development
 	const mockDigest: Digest = {
@@ -203,6 +205,33 @@
 					</span>
 				</span>
 			</a>
+
+			<!-- Auth button -->
+			{#if data.user}
+				<form method="POST" action="/auth/logout" class="inline">
+					<button
+						type="submit"
+						class="flex items-center gap-2 px-3 py-2 rounded-lg border border-paper-300 dark:border-ink-700 hover:border-red-500 dark:hover:border-red-500 transition-colors group"
+						title="Logout from {data.user.email}"
+					>
+						<LogOut class="w-4 h-4 text-ink-500 dark:text-paper-500 group-hover:text-red-500" />
+						<span class="text-sm text-ink-600 dark:text-paper-400 group-hover:text-red-500">
+							Logout
+						</span>
+					</button>
+				</form>
+			{:else}
+				<a
+					href="/auth/login"
+					class="flex items-center gap-2 px-3 py-2 rounded-lg border border-paper-300 dark:border-ink-700 hover:border-green-500 dark:hover:border-green-500 transition-colors group"
+					title="Login to save preferences"
+				>
+					<LogIn class="w-4 h-4 text-ink-500 dark:text-paper-500 group-hover:text-green-500" />
+					<span class="text-sm text-ink-600 dark:text-paper-400 group-hover:text-green-500">
+						Login
+					</span>
+				</a>
+			{/if}
 		</div>
 
 		<a href="/history" class="btn btn-secondary">
