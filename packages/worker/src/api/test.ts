@@ -341,4 +341,107 @@ test.post('/generate-digest', async (c) => {
   }
 });
 
+/**
+ * POST /test/provision-job - Test full ephemeral server provisioning.
+ * Creates a real Hetzner server, runs digest generation, and self-destructs.
+ */
+test.post('/provision-job', async (c) => {
+  try {
+    const { createServer } = await import('../services/hetzner');
+    const { generateCloudInit } = await import('../services/cloud-init');
+    const { createUser } = await import('../services/database');
+
+    // Create test user
+    const userId = `test-${Date.now()}`;
+    const jobId = crypto.randomUUID();
+
+    console.log(`🚀 Starting test job: ${jobId}`);
+    console.log(`   User: ${userId}`);
+
+    // Create user in database first
+    await createUser(c.env.DB, {
+      id: userId,
+      email: `${userId}@test.com`,
+      subscriptionTier: 'free',
+      preferences: {
+        topics: [{ name: 'Test', keywords: ['test'], priority: 5, enabled: true }],
+        sources: [],
+        delivery: {
+          frequency: 'daily_am',
+          deliveryTimeUtc: '06:00',
+          channels: ['web'],
+          lookbackHours: 24,
+          timezone: 'UTC',
+        },
+        style: {
+          tone: 'hn-style',
+          skepticismLevel: 4,
+          technicalDepth: 4,
+          includeBiasAnalysis: false,
+        },
+      },
+    });
+
+    // Create job in D1
+    await c.env.DB.prepare(`
+      INSERT INTO jobs (id, user_id, status, started_at)
+      VALUES (?, ?, 'pending', ?)
+    `).bind(jobId, userId, new Date().toISOString()).run();
+
+    await c.env.DB.prepare(`
+      INSERT INTO server_logs (job_id, level, message)
+      VALUES (?, 'info', 'Test job created')
+    `).bind(jobId).run();
+
+    // Generate cloud-init with test flag (minimal script)
+    const workerUrl = new URL(c.req.url).origin;
+    const { generateTestCloudInit } = await import('../services/cloud-init');
+    const cloudInit = generateTestCloudInit(jobId, workerUrl);
+
+    console.log('📦 Provisioning Hetzner server...');
+
+    // Provision server
+    const server = await createServer(c.env, jobId, cloudInit);
+
+    console.log(`✅ Server provisioned: ${server.id}`);
+    console.log(`   IP: ${server.ip}`);
+
+    // Update job with server info
+    await c.env.DB.prepare(`
+      UPDATE jobs
+      SET status = 'provisioning', server_id = ?, server_ip = ?
+      WHERE id = ?
+    `).bind(server.id, server.ip, jobId).run();
+
+    await c.env.DB.prepare(`
+      INSERT INTO server_logs (job_id, level, message, metadata)
+      VALUES (?, 'info', 'Server provisioned', ?)
+    `).bind(jobId, JSON.stringify({ server_id: server.id, ip: server.ip })).run();
+
+    return c.json({
+      success: true,
+      data: {
+        jobId,
+        serverId: server.id,
+        serverIp: server.ip,
+        status: 'provisioning',
+        message: 'Test job started! Server will boot, call webhook, and self-destruct.',
+        monitor: `GET /api/jobs/${jobId} to watch progress`
+      },
+    });
+  } catch (error) {
+    console.error('Provision test error:', error);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'PROVISION_ERROR',
+          message: error instanceof Error ? error.message : 'Provisioning failed',
+        },
+      },
+      500
+    );
+  }
+});
+
 export default test;
