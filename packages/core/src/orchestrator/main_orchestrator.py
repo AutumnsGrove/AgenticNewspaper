@@ -231,6 +231,7 @@ class MainOrchestrator:
             topics_covered=list(parsed_articles_by_topic.keys()),
             total_articles_found=search_stats["search_count"] * 5,  # Estimate
             total_articles_parsed=total_parsed,
+            total_articles_analyzed=total_parsed,  # Phase 1: no quality filtering yet
             total_articles_included=total_parsed,  # Phase 1: include all parsed
             total_tokens_used=total_tokens,
             total_cost_usd=total_cost,
