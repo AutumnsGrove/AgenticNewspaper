@@ -38,6 +38,9 @@ const SYNTHESIS_TEMPERATURE = 0.7;
 /** Average reading speed in words per minute */
 const READING_SPEED_WPM = 200;
 
+/** Maximum content preview length for article synthesis */
+const CONTENT_PREVIEW_LENGTH = 800;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -368,12 +371,10 @@ export class DigestGenerator {
 
       // Format articles for synthesis using array-based concatenation for efficiency
       const articleParts: string[] = [];
-      const CONTENT_PREVIEW_LENGTH = 800;
       for (let i = 0; i < articles.length; i++) {
         const a = articles[i];
-        const contentPreview = a.content.length > CONTENT_PREVIEW_LENGTH
-          ? a.content.slice(0, CONTENT_PREVIEW_LENGTH)
-          : a.content;
+        // slice() handles length automatically - no ternary needed
+        const contentPreview = a.content.slice(0, CONTENT_PREVIEW_LENGTH);
         articleParts.push(
           `Article ${i + 1}:\nTitle: ${a.title}\nSource: ${a.source}\nURL: ${a.url}\nReading Time: ${a.readingTimeMinutes} min\nContent Preview:\n${contentPreview}`
         );

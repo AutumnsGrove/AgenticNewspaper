@@ -155,8 +155,9 @@ export class LLMService {
       throw new LLMError('Prompt cannot be empty', 400);
     }
 
-    // Estimate token count (~4 chars per token for English) and validate against context limit
-    const estimatedTokens = Math.ceil(prompt.length / 4);
+    // Estimate token count (~3 chars per token for safety margin)
+    // Using conservative estimate to account for non-English text, code, and JSON
+    const estimatedTokens = Math.ceil(prompt.length / 3);
     const maxContextTokens = this.modelInfo.contextLength;
     // Reserve 20% of context for response and system prompt overhead
     const maxInputTokens = Math.floor(maxContextTokens * 0.8);

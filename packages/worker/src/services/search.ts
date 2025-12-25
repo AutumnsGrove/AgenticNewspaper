@@ -45,7 +45,8 @@ const TAVILY_BASE_URL = 'https://api.tavily.com';
 
 // Rate limiting configuration
 const RATE_LIMIT_CONFIG = {
-  delayBetweenRequestsMs: 200, // Small delay between parallel requests
+  maxConcurrent: 2, // Maximum parallel requests
+  delayBetweenBatchesMs: 200, // Delay between batches of parallel requests
   maxRetries: 3,
   baseBackoffMs: 1000, // Start with 1 second backoff
 };
@@ -158,6 +159,16 @@ export class SearchService {
       if (!response.ok) {
         const errorText = await response.text();
         this.stats.errors++;
+
+        // Throw RateLimitError for 429 status to enable retry logic
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          throw new RateLimitError(
+            `Tavily API rate limit: ${errorText}`,
+            retryAfter ? parseFloat(retryAfter) : undefined
+          );
+        }
+
         throw new SearchError(
           `Tavily API error (${response.status}): ${errorText}`,
           response.status
@@ -200,24 +211,28 @@ export class SearchService {
     // Generate search queries
     const queries = this.generateTopicQueries(topicName, keywords, excludeKeywords);
 
-    // Execute searches with rate limiting and retry logic
+    // Execute searches with rate limiting and concurrency control
+    // Uses a middle ground: run up to 2 queries in parallel, with delays between batches
     const resultsPerQuery = Math.ceil(maxResults / Math.min(queries.length, 3)) + 5;
     const queriesToExecute = queries.slice(0, 3);
 
     const resultsLists: SearchResult[][] = [];
-    for (let i = 0; i < queriesToExecute.length; i++) {
-      const query = queriesToExecute[i];
-
-      // Add delay between requests to avoid rate limits
+    for (let i = 0; i < queriesToExecute.length; i += RATE_LIMIT_CONFIG.maxConcurrent) {
+      // Add delay between batches to avoid rate limits
       if (i > 0) {
-        await this.delay(RATE_LIMIT_CONFIG.delayBetweenRequestsMs);
+        await this.delay(RATE_LIMIT_CONFIG.delayBetweenBatchesMs);
       }
 
-      const result = await this.searchWithRetry(query, {
-        ...searchOptions,
-        maxResults: resultsPerQuery,
-      });
-      resultsLists.push(result);
+      // Run batch of queries in parallel
+      const batch = queriesToExecute.slice(i, i + RATE_LIMIT_CONFIG.maxConcurrent);
+      const batchPromises = batch.map((query) =>
+        this.searchWithRetry(query, {
+          ...searchOptions,
+          maxResults: resultsPerQuery,
+        })
+      );
+      const batchResults = await Promise.all(batchPromises);
+      resultsLists.push(...batchResults);
     }
 
     // Flatten and deduplicate by URL
