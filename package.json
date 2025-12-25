@@ -1,0 +1,35 @@
+{
+  "name": "the-daily-clearing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered personalized news aggregator with multi-agent architecture",
+  "workspaces": [
+    "packages/web",
+    "packages/worker"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter @clearing/web dev",
+    "build": "pnpm --filter @clearing/web build && pnpm --filter @clearing/worker build",
+    "preview": "pnpm --filter @clearing/web preview",
+    "deploy:worker": "pnpm --filter @clearing/worker deploy",
+    "test:web": "pnpm --filter @clearing/web test",
+    "test:worker": "pnpm --filter @clearing/worker test",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format"
+  },
+  "keywords": [
+    "news",
+    "aggregator",
+    "ai",
+    "multi-agent",
+    "cloudflare",
+    "svelte"
+  ],
+  "author": "AutumnsGrove",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
