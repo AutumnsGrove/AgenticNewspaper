@@ -13,7 +13,12 @@
 		Moon,
 		Sun,
 		Cloud,
-		Server
+		Server,
+		Zap,
+		DollarSign,
+		Wrench,
+		Brain,
+		Rocket
 	} from 'lucide-svelte';
 	import type { TopicPreference, StylePreferences } from '$types';
 
@@ -216,12 +221,21 @@
 					Fast, serverless generation using Durable Objects. Runs entirely on Cloudflare's edge
 					network.
 				</p>
-				<div class="mt-3 flex items-center gap-2 text-xs text-ink-500 dark:text-paper-500">
-					<span>⚡ Ultra-fast</span>
+				<div class="mt-3 flex items-center gap-3 text-xs text-ink-500 dark:text-paper-500">
+					<span class="flex items-center gap-1">
+						<Zap class="w-3 h-3" />
+						Ultra-fast
+					</span>
 					<span>•</span>
-					<span>💰 Low cost</span>
+					<span class="flex items-center gap-1">
+						<DollarSign class="w-3 h-3" />
+						Low cost
+					</span>
 					<span>•</span>
-					<span>🌍 Global</span>
+					<span class="flex items-center gap-1">
+						<Globe class="w-3 h-3" />
+						Global
+					</span>
 				</div>
 			</button>
 
@@ -253,12 +267,21 @@
 					On-demand ephemeral servers for complex processing. Provisions a Hetzner VPS for each
 					digest.
 				</p>
-				<div class="mt-3 flex items-center gap-2 text-xs text-ink-500 dark:text-paper-500">
-					<span>🔧 Full control</span>
+				<div class="mt-3 flex items-center gap-3 text-xs text-ink-500 dark:text-paper-500">
+					<span class="flex items-center gap-1">
+						<Wrench class="w-3 h-3" />
+						Full control
+					</span>
 					<span>•</span>
-					<span>🧠 Advanced processing</span>
+					<span class="flex items-center gap-1">
+						<Brain class="w-3 h-3" />
+						Advanced processing
+					</span>
 					<span>•</span>
-					<span>🚀 Self-destructs</span>
+					<span class="flex items-center gap-1">
+						<Rocket class="w-3 h-3" />
+						Self-destructs
+					</span>
 				</div>
 			</button>
 		</div>
