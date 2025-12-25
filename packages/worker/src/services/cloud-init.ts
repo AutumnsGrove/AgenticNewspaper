@@ -93,7 +93,7 @@ write_files:
               print(f"Digest generated successfully!")
               print(f"Topics: {len(digest.sections)}")
               print(f"Articles: {digest.metadata.total_articles_included}")
-              print(f"Cost: \\${digest.metadata.total_cost_usd:.4f}")
+              print(f"Cost: {digest.metadata.total_cost_usd:.4f} USD")
 
               # Upload to Cloudflare
               async with httpx.AsyncClient(timeout=30.0) as client:
