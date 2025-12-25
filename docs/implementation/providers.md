@@ -65,7 +65,7 @@ class OpenRouterProvider(LLMProvider):
     def __init__(
         self,
         api_key: str,
-        default_model: str = "deepseek/deepseek-chat"
+        default_model: str = "deepseek/deepseek-v3.2"
     ):
         self.api_key = api_key
         self.default_model = default_model
@@ -104,7 +104,7 @@ class OpenRouterProvider(LLMProvider):
 
 | Model ID | Use Case | Cost |
 |----------|----------|------|
-| `deepseek/deepseek-chat` | Tier 1 agents | Low |
+| `deepseek/deepseek-v3.2` | Tier 1 agents | Low |
 | `anthropic/claude-sonnet-4` | Tier 2 agents | Medium |
 | `anthropic/claude-3.5-sonnet` | Alternative Tier 2 | Medium |
 | `openai/gpt-4-turbo` | Alternative Tier 2 | High |
@@ -116,7 +116,7 @@ from core.providers import OpenRouterProvider
 
 provider = OpenRouterProvider(
     api_key="sk-or-...",
-    default_model="deepseek/deepseek-chat"
+    default_model="deepseek/deepseek-v3.2"
 )
 
 # Use specific model

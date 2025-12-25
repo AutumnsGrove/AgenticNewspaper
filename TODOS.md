@@ -77,7 +77,7 @@ Python (packages/core)           TypeScript (packages/worker)
 
 - [ ] Create OpenRouter provider
 - [ ] HTTP POST to https://openrouter.ai/api/v1/chat/completions
-- [ ] Use model: `deepseek/deepseek-chat` (v3.2)
+- [ ] Use model: `deepseek/deepseek-v3.2`
 - [ ] Add token counting and cost tracking
 - [ ] Add Anthropic fallback (optional)
 - [ ] Test: Generate search query with LLM
@@ -261,7 +261,7 @@ curl http://localhost:8787/api/test/env
 
 ## ⚠️ Critical Notes
 
-1. **DeepSeek V3.2**: Use model ID `deepseek/deepseek-chat`
+1. **DeepSeek V3.2**: Use model ID `deepseek/deepseek-v3.2`
 2. **OpenRouter is PRIMARY**: Anthropic is fallback only
 3. **Copy Python prompts exactly**: They're tested and working
 4. **Budget**: $0.30 daily target, currently $0.0034 per run

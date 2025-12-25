@@ -58,8 +58,8 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 // Model definitions - costs from OpenRouter
 export const MODELS: Record<string, ModelInfo> = {
-  'deepseek/deepseek-chat': {
-    modelId: 'deepseek/deepseek-chat',
+  'deepseek/deepseek-v3.2': {
+    modelId: 'deepseek/deepseek-v3.2',
     name: 'DeepSeek V3.2',
     provider: 'deepseek',
     contextLength: 64000,
@@ -92,7 +92,7 @@ export const MODELS: Record<string, ModelInfo> = {
   },
 };
 
-export const DEFAULT_MODEL = 'deepseek/deepseek-chat';
+export const DEFAULT_MODEL = 'deepseek/deepseek-v3.2';
 
 // ============================================================================
 // LLM Service

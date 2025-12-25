@@ -80,7 +80,7 @@ def mock_openrouter_response():
             "completion_tokens": 50,
             "total_tokens": 150,
         },
-        "model": "deepseek/deepseek-chat",
+        "model": "deepseek/deepseek-v3.2",
     }
 
 

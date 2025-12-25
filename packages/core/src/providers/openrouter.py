@@ -38,8 +38,8 @@ from .base import (
 # Model definitions for OpenRouter
 OPENROUTER_MODELS: dict[str, ModelInfo] = {
     # DeepSeek models (Tier 1 & 2 - extremely cost-effective)
-    "deepseek/deepseek-chat": ModelInfo(
-        model_id="deepseek/deepseek-chat",
+    "deepseek/deepseek-v3.2": ModelInfo(
+        model_id="deepseek/deepseek-v3.2",
         name="DeepSeek V3.2",
         provider="deepseek",
         tier=ModelTier.TIER1,
@@ -144,8 +144,8 @@ OPENROUTER_MODELS: dict[str, ModelInfo] = {
 }
 
 # Default models by tier
-DEFAULT_TIER1_MODEL = "deepseek/deepseek-chat"
-DEFAULT_TIER2_MODEL = "deepseek/deepseek-chat"  # Can use same model, prompts differ
+DEFAULT_TIER1_MODEL = "deepseek/deepseek-v3.2"
+DEFAULT_TIER2_MODEL = "deepseek/deepseek-v3.2"  # Can use same model, prompts differ
 
 
 class OpenRouterProvider(BaseLLMProvider):
@@ -172,7 +172,7 @@ class OpenRouterProvider(BaseLLMProvider):
 
         Args:
             api_key: OpenRouter API key
-            model: Model identifier (e.g., "deepseek/deepseek-chat")
+            model: Model identifier (e.g., "deepseek/deepseek-v3.2")
             data_policy: Data retention policy ("deny" for zero retention)
             site_url: Your site URL (for OpenRouter rankings)
             site_name: Your site name (for OpenRouter rankings)

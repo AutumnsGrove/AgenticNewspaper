@@ -47,7 +47,7 @@ class TestOpenRouterProviderInit:
     @pytest.mark.parametrize(
         "model",
         [
-            "deepseek/deepseek-chat",
+            "deepseek/deepseek-v3.2",
             "anthropic/claude-sonnet-4",
             "anthropic/claude-3.5-haiku",
             "openai/gpt-4o",
@@ -98,10 +98,10 @@ class TestOpenRouterModelInfo:
     def test_get_model_info_deepseek(self):
         """Test getting model info for DeepSeek."""
         provider = OpenRouterProvider(
-            api_key="test-key", model="deepseek/deepseek-chat"
+            api_key="test-key", model="deepseek/deepseek-v3.2"
         )
         info = provider.get_model_info()
-        assert info.model_id == "deepseek/deepseek-chat"
+        assert info.model_id == "deepseek/deepseek-v3.2"
         assert info.provider == "deepseek"
         assert info.input_cost_per_million >= 0
         assert info.output_cost_per_million >= 0
@@ -154,7 +154,7 @@ class TestOpenRouterComplete:
                 "completion_tokens": 50,
                 "total_tokens": 150,
             },
-            "model": "deepseek/deepseek-chat",
+            "model": "deepseek/deepseek-v3.2",
         }
 
     def _mock_httpx_response(self, data: dict) -> MagicMock:
@@ -315,7 +315,7 @@ class TestOpenRouterCostCalculation:
     @pytest.fixture
     def provider(self):
         """Create a provider with known costs."""
-        return OpenRouterProvider(api_key="test-key", model="deepseek/deepseek-chat")
+        return OpenRouterProvider(api_key="test-key", model="deepseek/deepseek-v3.2")
 
     def _mock_httpx_response(self, data: dict) -> MagicMock:
         """Create a mock httpx response."""

@@ -83,7 +83,7 @@ class TestGetProvider:
     def test_get_provider_different_models_different_instances(self):
         """Test that different models create different instances."""
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}):
-            provider1 = get_provider(ProviderType.OPENROUTER, model="deepseek/deepseek-chat")
+            provider1 = get_provider(ProviderType.OPENROUTER, model="deepseek/deepseek-v3.2")
             provider2 = get_provider(ProviderType.OPENROUTER, model="openai/gpt-4o")
             assert provider1.model != provider2.model
 

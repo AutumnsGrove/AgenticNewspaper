@@ -529,8 +529,8 @@ class OpenRouterProvider:
 
 | Tier | Default Model | Cost | Use Case |
 |------|---------------|------|----------|
-| Tier 1 | `deepseek/deepseek-chat` | $0.27/$1.10 per 1M | Search, scoring |
-| Tier 2 | `deepseek/deepseek-chat` | $0.27/$1.10 per 1M | Analysis, synthesis |
+| Tier 1 | `deepseek/deepseek-v3.2` | $0.27/$1.10 per 1M | Search, scoring |
+| Tier 2 | `deepseek/deepseek-v3.2` | $0.27/$1.10 per 1M | Analysis, synthesis |
 | Tier 2 (premium) | `anthropic/claude-sonnet` | $3/$15 per 1M | High-quality synthesis |
 
 ### Privacy Settings

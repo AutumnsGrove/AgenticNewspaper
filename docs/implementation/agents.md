@@ -236,7 +236,7 @@ provider = create_provider("anthropic", api_key="...")
 
 ```python
 config = {
-    "tier1_model": "deepseek/deepseek-chat",
+    "tier1_model": "deepseek/deepseek-v3.2",
     "tier2_model": "anthropic/claude-sonnet-4",
     "quality_threshold": 0.5,
     "max_articles_per_topic": 10,

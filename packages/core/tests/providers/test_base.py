@@ -140,8 +140,8 @@ class TestModelInfo:
     def test_create_model_info(self):
         """Test creating model info."""
         info = ModelInfo(
-            model_id="deepseek/deepseek-chat",
-            name="DeepSeek Chat",
+            model_id="deepseek/deepseek-v3.2",
+            name="DeepSeek V3.2",
             provider="openrouter",
             tier=ModelTier.TIER1,
             context_length=128000,
@@ -150,8 +150,8 @@ class TestModelInfo:
             supports_vision=False,
             supports_function_calling=True,
         )
-        assert info.model_id == "deepseek/deepseek-chat"
-        assert info.name == "DeepSeek Chat"
+        assert info.model_id == "deepseek/deepseek-v3.2"
+        assert info.name == "DeepSeek V3.2"
         assert info.provider == "openrouter"
         assert info.tier == ModelTier.TIER1
         assert info.input_cost_per_million == 0.27

@@ -68,7 +68,7 @@
   },
 
   "config": {
-    "default_model": "deepseek/deepseek-chat",
+    "default_model": "deepseek/deepseek-v3.2",
     "fallback_model": "anthropic/claude-3.5-haiku",
     "content_truncation": {
       "html_preview": 4000,
