@@ -224,7 +224,8 @@ export class SearchService {
 
     // Execute searches with rate limiting and concurrency control
     // Uses a middle ground: run up to 2 queries in parallel, with delays between batches
-    const resultsPerQuery = Math.ceil(maxResults / Math.min(queries.length, 3)) + 5;
+    // Validate resultsPerQuery against bounds (1-100) enforced by search()
+    const resultsPerQuery = Math.min(100, Math.ceil(maxResults / Math.min(queries.length, 3)) + 5);
     const queriesToExecute = queries.slice(0, 3);
 
     const resultsLists: SearchResult[][] = [];
@@ -284,6 +285,7 @@ export class SearchService {
   /**
    * Search with exponential backoff retry for rate limit errors.
    * Includes timeout protection to prevent excessive delays.
+   * Returns empty array on failure to allow batch processing to continue.
    */
   private async searchWithRetry(
     query: string,
@@ -293,20 +295,13 @@ export class SearchService {
     const retryStartTime = Date.now();
 
     for (let attempt = 0; attempt < RATE_LIMIT_CONFIG.maxRetries; attempt++) {
-      // Check if total retry time exceeded
-      if (Date.now() - retryStartTime > RATE_LIMIT_CONFIG.maxTotalRetryMs) {
-        console.error(
-          `Retry timeout exceeded for query "${query}" after ${Date.now() - retryStartTime}ms`
-        );
-        return [];
-      }
-
       try {
         return await this.search(query, options);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
 
-        // Retry on rate limit errors (429) - check both error type and status code for safety
+        // Retry on rate limit errors (429)
+        // Defensive: check both error type AND status code in case error type changes
         const isRateLimitError =
           err instanceof RateLimitError ||
           (err instanceof SearchError && err.statusCode === 429);
@@ -317,12 +312,21 @@ export class SearchService {
               ? err.retryAfter * 1000
               : RATE_LIMIT_CONFIG.baseBackoffMs * Math.pow(2, attempt);
 
+          // Check if waiting would exceed total retry timeout BEFORE waiting
+          const elapsedMs = Date.now() - retryStartTime;
+          if (elapsedMs + backoffMs > RATE_LIMIT_CONFIG.maxTotalRetryMs) {
+            console.error(
+              `Retry timeout would be exceeded for query "${query}" (elapsed: ${elapsedMs}ms, backoff: ${backoffMs}ms, limit: ${RATE_LIMIT_CONFIG.maxTotalRetryMs}ms)`
+            );
+            return [];
+          }
+
           console.warn(
             `Rate limited on query "${query}", retrying in ${backoffMs}ms (attempt ${attempt + 1}/${RATE_LIMIT_CONFIG.maxRetries})`
           );
           await this.delay(backoffMs);
         } else {
-          // Don't retry other errors
+          // Don't retry other errors - return empty to allow batch processing to continue
           const errorDetails = {
             message: lastError.message,
             name: lastError.name,

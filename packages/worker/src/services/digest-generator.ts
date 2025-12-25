@@ -35,9 +35,6 @@ const SYNTHESIS_MAX_TOKENS = 1500;
 /** Temperature for synthesis (higher = more creative) */
 const SYNTHESIS_TEMPERATURE = 0.7;
 
-/** Average reading speed in words per minute */
-const READING_SPEED_WPM = 200;
-
 /** Maximum content preview length for article synthesis */
 const CONTENT_PREVIEW_LENGTH = 800;
 

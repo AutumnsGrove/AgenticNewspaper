@@ -162,8 +162,12 @@ export class LLMService {
       throw new LLMError('Prompt cannot be empty', 400);
     }
 
-    // Estimate token count (~3 chars per token for safety margin)
-    // Using conservative estimate to account for non-English text, code, and JSON
+    // Estimate token count using conservative 3 chars/token ratio
+    // Standard English is ~4 chars/token, but we use 3 to provide safety margin for:
+    // - Non-English text (CJK can be 1-2 chars/token)
+    // - Code snippets (special characters, whitespace)
+    // - JSON/structured data (brackets, quotes)
+    // This prevents unnecessary API failures at the cost of slightly earlier rejections
     const estimatedTokens = Math.ceil(prompt.length / 3);
     const maxContextTokens = this.modelInfo.contextLength;
     // Reserve 20% of context for response and system prompt overhead
