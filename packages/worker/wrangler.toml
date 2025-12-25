@@ -12,7 +12,7 @@ port = 8787
 [[d1_databases]]
 binding = "DB"
 database_name = "daily-clearing-db"
-database_id = "placeholder-id"
+database_id = "1fb94ac6-53c6-49d6-9388-a6f585f86196"
 migrations_dir = "schemas/migrations"
 
 # R2 Storage bindings
@@ -41,11 +41,11 @@ new_classes = ["DigestJob", "UserState"]
 # KV Namespaces for rate limiting and session tokens
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "placeholder-id"
+id = "e8e32f2d2e844ed8bec151c4f8518025"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "placeholder-id"
+id = "46c5fb1dd2d04385a7e624b2e4730ad6"
 
 # Environment variables (secrets set via wrangler secret)
 [vars]
