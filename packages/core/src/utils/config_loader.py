@@ -34,13 +34,15 @@ def load_secrets() -> Dict[str, str]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Error parsing secrets.json: {e}")
 
-    # Validate required keys
-    required_keys = ["anthropic_api_key"]
-    missing_keys = [key for key in required_keys if not secrets.get(key)]
+    # Validate required keys - OpenRouter is primary, Anthropic is fallback
+    # At least one LLM provider key must be present
+    has_openrouter = bool(secrets.get("openrouter_api_key"))
+    has_anthropic = bool(secrets.get("anthropic_api_key"))
 
-    if missing_keys:
+    if not has_openrouter and not has_anthropic:
         raise ValueError(
-            f"Missing required keys in secrets.json: {', '.join(missing_keys)}"
+            "At least one LLM provider key required in secrets.json: "
+            "openrouter_api_key (primary) or anthropic_api_key (fallback)"
         )
 
     return secrets
@@ -88,31 +90,48 @@ def load_user_preferences() -> Dict[str, Any]:
     return config
 
 
-def get_anthropic_api_key() -> str:
+def get_openrouter_api_key() -> str:
     """
-    Get Anthropic API key from secrets.
+    Get OpenRouter API key from secrets (PRIMARY provider).
 
     Returns:
-        Anthropic API key string
+        OpenRouter API key string
 
     Raises:
         ValueError: If API key is not found or is empty
     """
     secrets = load_secrets()
-    api_key = secrets.get("anthropic_api_key", "")
+    api_key = secrets.get("openrouter_api_key", "")
 
-    if not api_key or api_key.startswith("sk-ant-api03-YOUR"):
+    if not api_key or api_key.startswith("sk-or-v1-YOUR"):
         raise ValueError(
-            "Anthropic API key not configured in secrets.json. "
+            "OpenRouter API key not configured in secrets.json. "
             "Please add a valid API key."
         )
 
     return api_key
 
 
+def get_anthropic_api_key() -> str:
+    """
+    Get Anthropic API key from secrets (FALLBACK provider).
+
+    Returns:
+        Anthropic API key string or empty string if not configured
+    """
+    secrets = load_secrets()
+    api_key = secrets.get("anthropic_api_key", "")
+
+    # Return empty string if not configured (it's optional fallback)
+    if not api_key or api_key.startswith("sk-ant-api03-YOUR"):
+        return ""
+
+    return api_key
+
+
 def get_tavily_api_key() -> str:
     """
-    Get Tavily API key from secrets (optional for Phase 1).
+    Get Tavily API key from secrets (required for search).
 
     Returns:
         Tavily API key string or empty string if not configured

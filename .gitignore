@@ -14,7 +14,9 @@ outputs/archives/
 *.egg-info/
 dist/
 build/
+packages/worker/.wrangler/
 
 # BaseProject backups
 .baseproject-backup-*/
 baseproject-update-summary.md
+.dev.vars
