@@ -17,3 +17,4 @@ build/
 
 # BaseProject backups
 .baseproject-backup-*/
+baseproject-update-summary.md
