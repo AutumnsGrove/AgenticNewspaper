@@ -5,19 +5,35 @@ import asyncio
 from datetime import datetime
 from ...models.article import ArticleURL
 from ...mcp_servers import get_tier1_server
+from ...services.search import SearchService, SearchProvider, SearchConfig
+from ...utils.config_loader import load_secrets
 
 
 class SearchAgent:
     """
     Tier 1 Search Agent - Finds relevant articles on specified topics.
 
-    Uses LLM (via MCP → Haiku) to generate search queries and process results.
+    Uses LLM (via MCP) for query generation and Tavily for real search.
     """
 
     def __init__(self):
-        """Initialize Search Agent with Tier 1 MCP server."""
+        """Initialize Search Agent with Tier 1 MCP server and Tavily search."""
         self.server = get_tier1_server()
         self.search_count = 0
+
+        # Initialize real Tavily search
+        secrets = load_secrets()
+        tavily_key = secrets.get("tavily_api_key", "")
+
+        if not tavily_key or tavily_key.startswith("tvly-YOUR"):
+            print("⚠️  No valid Tavily API key found, using mock search")
+            self.search_service = SearchService(provider=SearchProvider.MOCK)
+        else:
+            print("✓ Using Tavily API for real search")
+            self.search_service = SearchService(
+                api_key=tavily_key,
+                provider=SearchProvider.TAVILY
+            )
 
     async def search_topic(
         self,
@@ -49,7 +65,7 @@ class SearchAgent:
             exclude_keywords
         )
 
-        # Execute mock search (Phase 1 - will integrate real search API in Phase 2)
+        # Execute real Tavily search
         results = await self._execute_search(
             query,
             max_results,
@@ -114,41 +130,43 @@ Return ONLY the search query, no explanation."""
         sources: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Execute search query (Phase 1: mock implementation).
+        Execute search query using Tavily API.
 
         Args:
             query: Search query
             max_results: Maximum results to return
-            sources: Preferred sources
+            sources: Preferred sources (used for domain filtering)
 
         Returns:
             List of search result dictionaries
         """
-        # Phase 1: Return mock search results
-        # In Phase 2+, integrate with Tavily or Brave Search API
+        # Use real Tavily search
+        try:
+            search_results = await self.search_service.search(
+                query=query,
+                max_results=max_results,
+                include_domains=sources if sources else None,
+                days_back=30  # Last 30 days
+            )
 
-        sources = sources or [
-            "news.ycombinator.com",
-            "arstechnica.com",
-            "arxiv.org"
-        ]
+            # Convert SearchResult objects to dicts for compatibility
+            results = []
+            for result in search_results:
+                results.append({
+                    "url": result.url,
+                    "title": result.title,
+                    "snippet": result.snippet,
+                    "source": result.source,
+                    "published_date": result.published_date.isoformat() if result.published_date else None,
+                    "rank": result.rank,
+                    "relevance_score": result.relevance_score
+                })
 
-        mock_results = []
+            return results
 
-        # Generate mock results based on query
-        for i in range(max_results):
-            source = sources[i % len(sources)]
-
-            mock_results.append({
-                "url": f"https://{source}/article-{i + 1}-{query[:20].replace(' ', '-')}",
-                "title": f"Mock Article {i + 1}: {query[:50]}",
-                "snippet": f"This is a mock article about {query}. Contains relevant information and insights...",
-                "source": source,
-                "published_date": datetime.now().isoformat(),
-                "rank": i + 1
-            })
-
-        return mock_results
+        except Exception as e:
+            print(f"⚠️  Search failed: {e}, falling back to empty results")
+            return []
 
     async def _process_search_results(
         self,

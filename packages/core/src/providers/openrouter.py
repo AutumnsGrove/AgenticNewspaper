@@ -40,14 +40,14 @@ OPENROUTER_MODELS: dict[str, ModelInfo] = {
     # DeepSeek models (Tier 1 & 2 - extremely cost-effective)
     "deepseek/deepseek-chat": ModelInfo(
         model_id="deepseek/deepseek-chat",
-        name="DeepSeek V3",
+        name="DeepSeek V3.2",
         provider="deepseek",
         tier=ModelTier.TIER1,
         context_length=64000,
         input_cost_per_million=0.27,
         output_cost_per_million=1.10,
         supports_vision=False,
-        description="DeepSeek V3 - Cost-effective model with strong reasoning",
+        description="DeepSeek V3.2 - Latest version with improved reasoning",
     ),
     "deepseek/deepseek-r1": ModelInfo(
         model_id="deepseek/deepseek-r1",
