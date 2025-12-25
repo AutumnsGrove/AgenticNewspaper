@@ -1,409 +1,286 @@
-# Intelligent News Aggregator - Project TODOs
+# The Daily Clearing - Development TODOs
 
-**Project Status:** Planning → Implementation
-**Current Phase:** Phase 1 (Week 1)
-**Last Updated:** October 23, 2025
-
----
-
-## 🎯 Current Focus: Phase 1 - Core Loop (Week 1)
-
-**Goal:** Generate your first readable digest by end of week
-**Target Completion:** End of Week 1
-
-### Day 1-2: Project Setup & Agent SDK
-
-**Project Initialization**
-- [ ] Initialize project with UV
-  ```bash
-  uv init intelligent-news-aggregator
-  cd intelligent-news-aggregator
-  uv add anthropic-claude-sdk requests pyyaml
-  ```
-
-- [ ] Create directory structure
-  ```bash
-  mkdir -p src/{orchestrator,agents/{tier1_execution,tier2_reasoning},mcp_servers,models,utils}
-  mkdir -p config outputs/{daily_digests,archives} data docs web tests
-  ```
-
-- [ ] Copy template files to project
-  - [ ] `config/user_preferences.yaml` (from config/user-preferences-template.yaml)
-  - [ ] Simplify for Phase 1 (2 topics, 3 sources only)
-
-- [ ] Create `secrets.json` with API keys
-  ```json
-  {
-    "anthropic_api_key": "sk-ant-api03-...",
-    "tavily_api_key": "tvly-...",
-    "comment": "Add your API keys here"
-  }
-  ```
-
-- [ ] Create `.gitignore`
-  ```
-  secrets.json
-  *.pyc
-  __pycache__/
-  .venv/
-  data/*.db
-  outputs/archives/
-  .DS_Store
-  ```
-
-- [ ] Create `pyproject.toml`
-  ```toml
-  [project]
-  name = "intelligent-news-aggregator"
-  version = "0.1.0"
-  description = "Personalized news digest with Agent SDK + MCP"
-  requires-python = ">=3.11"
-  dependencies = [
-      "anthropic-claude-sdk",
-      "requests",
-      "pyyaml",
-      "newspaper3k",
-      "beautifulsoup4",
-      "lxml"
-  ]
-  ```
-
-**Agent SDK Test**
-- [ ] Create `tests/test_agent_sdk_connection.py`
-  - [ ] Test loading API key from secrets.json
-  - [ ] Test creating simple Agent SDK client
-  - [ ] Test "Hello World" agent response
-  - [ ] Verify it works before continuing
+**Project Status:** Split Architecture Implementation
+**Last Updated:** December 25, 2025
+**Current Session:** Handoff to Web Remote Claude Code
 
 ---
 
-### Day 3-4: Orchestrator + Search Agent
+## 🎯 Project Architecture
 
-**Main Orchestrator**
-- [ ] Implement `src/orchestrator/main_agent.py`
-  - [ ] Load user preferences from YAML
-  - [ ] Create Agent SDK orchestrator
-  - [ ] Define subagents (search, parser, synthesis)
-  - [ ] Initialize MCP servers
-  - [ ] Create orchestration loop
-  - [ ] Handle errors gracefully
+### **Dual Standalone Packages**
 
-- [ ] Create `src/utils/config_loader.py`
-  - [ ] Load `secrets.json`
-  - [ ] Load `user_preferences.yaml`
-  - [ ] Validate configuration
+```
+Python (packages/core)           TypeScript (packages/worker)
+├─ Hetzner VPS deployment        ├─ Cloudflare Workers
+├─ Local installs                ├─ Edge/serverless
+├─ CLI-based                     ├─ API-based
+└─ 90% Production Ready ✅       └─ Infrastructure Ready 🔨
+```
 
-**Search Agent**
-- [ ] Implement `src/agents/tier1_execution/search_agent.py`
-  - [ ] Agent SDK subagent definition
-  - [ ] System prompt for search specialist
-  - [ ] Tool access: `llm_complete`, `web_search`
-  - [ ] Query generation logic (use LLM via MCP)
-  - [ ] Execute searches (Tavily/Brave API)
-  - [ ] Return top 10-15 URLs per topic
-  - [ ] Include initial relevance scores
-
-- [ ] Create `src/models/article.py`
-  ```python
-  @dataclass
-  class ArticleURL:
-      url: str
-      title: str
-      source: str
-      published_date: Optional[datetime]
-      snippet: str
-      initial_relevance_score: float
-  ```
-
-**MCP Server (Basic)**
-- [ ] Implement `src/mcp_servers/base_provider.py`
-  - [ ] BaseLLMProvider abstract class
-  - [ ] LLMResponse dataclass
-
-- [ ] Implement `src/mcp_servers/claude_mcp_server.py`
-  - [ ] ClaudeMCPServer class
-  - [ ] `complete()` method (Haiku only for now)
-  - [ ] Token counting
-  - [ ] Cost calculation
-  - [ ] Health check
-
-- [ ] Create `src/mcp_servers/__init__.py`
-  - [ ] `create_mcp_servers()` function
-  - [ ] Load from secrets.json
-
-**Testing**
-- [ ] Can orchestrator load config?
-- [ ] Can orchestrator delegate to search agent?
-- [ ] Does search agent return URLs?
-- [ ] Are costs being tracked?
+**CRITICAL:** Both packages must work **100% independently**
+- No cross-dependencies
+- Same functionality
+- Different deployment targets
 
 ---
 
-### Day 5: Parser Agent
+## ✅ COMPLETED (Session 2025-12-25)
 
-**Fetch Agent**
-- [ ] Implement `src/agents/tier1_execution/fetch_agent.py`
-  - [ ] Agent SDK subagent definition
-  - [ ] Fetch article content with requests
-  - [ ] Handle timeouts (30s max)
-  - [ ] Handle HTTP errors (404, 500, etc.)
-  - [ ] Return raw HTML + metadata
+### Python Package - WORKING END-TO-END
 
-**Parser Agent**
-- [ ] Implement `src/agents/tier1_execution/parser_agent.py`
-  - [ ] Agent SDK subagent definition
-  - [ ] Detect content format (HTML, PDF, etc.)
-  - [ ] Extract article using newspaper3k or readability
-  - [ ] Extract metadata (title, author, date)
-  - [ ] Clean text (remove ads, navigation, etc.)
-  - [ ] Return ParsedArticle
+- [x] Project setup with UV
+- [x] Directory structure created
+- [x] OpenRouter as PRIMARY provider (DeepSeek V3.2)
+- [x] Anthropic as FALLBACK provider
+- [x] Real Tavily search integration
+- [x] Article fetching and parsing
+- [x] HN-style digest synthesis
+- [x] Cost tracking ($0.0034 per run)
+- [x] Full CLI working: `uv run python src/main.py`
+- [x] Test digest generated with real articles
 
-- [ ] Update `src/models/article.py`
-  ```python
-  @dataclass
-  class ParsedArticle:
-      article_id: str
-      url: str
-      title: str
-      content: str
-      author: Optional[str]
-      published_date: Optional[datetime]
-      source: str
-      word_count: int
-      reading_time_minutes: int
-  ```
+**Output:** `packages/core/outputs/daily_digests/2025-12-25.md`
 
-**Testing**
-- [ ] Can fetch 10 URLs successfully?
-- [ ] Can parse HTML articles?
-- [ ] Does error handling work (timeouts, 404s)?
-- [ ] Is text clean and readable?
+### Cloudflare Worker - INFRASTRUCTURE
+
+- [x] Wrangler configuration
+- [x] D1 database setup and migration (7 tables)
+- [x] R2 bucket configuration
+- [x] Dev server running (localhost:8787)
+- [x] API routes scaffolded
+- [x] Test endpoints working
+- [x] Environment variables configured
 
 ---
 
-### Day 6: Synthesis Agent
+## 🚀 PHASE 1: TypeScript Port (NEXT PRIORITY)
 
-**Synthesis Agent**
-- [ ] Implement `src/agents/tier2_reasoning/synthesis_agent.py`
-  - [ ] Agent SDK subagent definition
-  - [ ] System prompt for HN-style synthesis
-  - [ ] Uses MCP → Claude Sonnet
-  - [ ] Group articles by topic
-  - [ ] Write summaries (technical, skeptical, implications-focused)
-  - [ ] Format as markdown
-  - [ ] Return complete digest
+**Goal:** Make Cloudflare Worker fully standalone (no Python dependency)
 
-**Markdown Formatter**
-- [ ] Implement `src/utils/markdown_formatter.py`
-  - [ ] Digest template
-  - [ ] HN-style formatting
-  - [ ] Source citations
-  - [ ] Metadata section
+### Step 1: Port Search Service
 
-**Testing**
-- [ ] Does synthesis create readable summaries?
-- [ ] Is HN style authentic (technical, skeptical)?
-- [ ] Is markdown properly formatted?
-- [ ] Does it group articles by topic?
+**File:** `packages/worker/src/services/search.ts`
+
+- [ ] Create Tavily search service
+- [ ] HTTP POST to https://api.tavily.com/search
+- [ ] Return SearchResult[] interface
+- [ ] Test: Search for "AI research" returns results
+
+**Reference:** `packages/core/src/services/search.py`
 
 ---
 
-### Day 7: End-to-End Integration
+### Step 2: Port LLM Provider
 
-**Main Entry Point**
-- [ ] Implement `src/main.py`
-  - [ ] Load configuration
-  - [ ] Create orchestrator
-  - [ ] Run full pipeline
-  - [ ] Save digest to `outputs/daily_digests/YYYY-MM-DD.md`
-  - [ ] Print cost summary
-  - [ ] Handle errors gracefully
+**File:** `packages/worker/src/services/llm.ts`
 
-**End-to-End Test**
-- [ ] Run `uv run python src/main.py`
-- [ ] Check `outputs/daily_digests/` for generated digest
-- [ ] **Read the digest** - does it make sense?
-- [ ] Check cost - is it <$0.30?
-- [ ] Check logs - any errors?
+- [ ] Create OpenRouter provider
+- [ ] HTTP POST to https://openrouter.ai/api/v1/chat/completions
+- [ ] Use model: `deepseek/deepseek-chat` (v3.2)
+- [ ] Add token counting and cost tracking
+- [ ] Add Anthropic fallback (optional)
+- [ ] Test: Generate search query with LLM
 
-**Fixes & Refinement**
-- [ ] Fix any bugs found in E2E test
-- [ ] Improve error messages
-- [ ] Add logging
-- [ ] Optimize if needed
-
-**Documentation**
-- [ ] Add README.md (basic usage)
-- [ ] Document configuration
-- [ ] Add example digest to repository
+**Reference:** `packages/core/src/providers/openrouter.py`
 
 ---
 
-## ✅ Phase 1 Completion Checklist
+### Step 3: Port Article Parser
 
-Before moving to Phase 2, ensure:
+**File:** `packages/worker/src/services/parser.ts`
 
-- [ ] Can search 2 topics (AI/ML, Science)
-- [ ] Can fetch and parse 20+ articles
-- [ ] Can generate digest with 8-12 articles
-- [ ] Digest is actually readable (not gibberish)
-- [ ] Costs <$0.30
-- [ ] **You actually read it and found it useful**
+- [ ] Fetch article HTML
+- [ ] Extract main content (simple extraction or use API)
+- [ ] Extract metadata (title, author, date)
+- [ ] Return parsed article
+- [ ] Test: Parse a Nature.com article
 
-**If any checklist item fails, fix it before Phase 2!**
-
----
-
-## 📋 Phase 2: Intelligence & Quality (Week 2)
-
-**Status:** Not Started
-**Goal:** Make digest actually useful with quality filtering
-
-### High-Level Tasks
-
-- [ ] Implement content analysis agent (relevance + quality scoring)
-- [ ] Add quality threshold filtering (5-20 articles based on scores)
-- [ ] Expand to 5 topics
-- [ ] Expand to 8 sources
-- [ ] Improve HN-style writing in synthesis agent
-- [ ] Test: Read digest 3+ consecutive days
-
-**Details:** See `docs/development-phases.md` → Phase 2
+**Reference:** `packages/core/src/agents/tier1_execution/parser_agent.py`
 
 ---
 
-## 📋 Phase 3: Multi-Perspective Analysis (Week 3)
+### Step 4: Port Digest Generator
 
-**Status:** Not Started
-**Goal:** Add intelligence that beats manual reading
+**File:** `packages/worker/src/services/digest-generator.ts`
 
-### High-Level Tasks
+- [ ] Orchestrate: Search → Parse → Synthesize
+- [ ] Copy Python prompts EXACTLY (they're tested!)
+- [ ] Generate HN-style markdown
+- [ ] Track costs
+- [ ] Return full digest
+- [ ] Test: Generate complete digest
 
-- [ ] Implement bias detection agent
-- [ ] Implement fact verification agent
-- [ ] Add alternative perspective finding
-- [ ] Add cross-story connection analysis
-- [ ] Expand to all 9 topic categories
-- [ ] Test: Does it feel smarter than manual reading?
-
-**Details:** See `docs/development-phases.md` → Phase 3
+**Reference:** `packages/core/src/orchestrator/main_orchestrator.py`
 
 ---
 
-## 📋 Phase 4: Scale + Web UI (Week 4)
+### Step 5: Wire Up API
 
-**Status:** Not Started
-**Goal:** Production-ready with web interface
+**File:** `packages/worker/src/api/digests.ts`
 
-### High-Level Tasks
-
-- [ ] Add comprehensive error handling
-- [ ] Implement token usage optimization
-- [ ] Create Flask/FastAPI web UI
-- [ ] Add passive feedback tracking
-- [ ] Implement SQLite database (article history)
-- [ ] Create Docker deployment
-- [ ] Set up 30-day article retention
-- [ ] Deploy to Raspberry Pi
-
-**Details:** See `docs/development-phases.md` → Phase 4
+- [ ] Remove ORCHESTRATOR_API_URL dependency
+- [ ] Call local digest-generator.ts directly
+- [ ] Store result in R2
+- [ ] Save record to D1
+- [ ] Return digest to user
+- [ ] Test: POST /api/test/generate-digest
 
 ---
 
-## 📋 Phase 5: Self-Improvement (Week 5)
+### Step 6: End-to-End Testing
 
-**Status:** Not Started
-**Goal:** System learns from reading patterns
+- [ ] Generate digest via Worker API
+- [ ] Compare output to Python version
+- [ ] Verify cost (~$0.0034)
+- [ ] Verify quality matches Python
+- [ ] Test all error cases
 
-### High-Level Tasks
-
-- [ ] Add rich feedback UI (rate articles 1-5)
-- [ ] Implement learning algorithm
-- [ ] Auto-update user preferences
-- [ ] Add historical trend analysis
-- [ ] Expand to 15+ sources
-- [ ] Test: Do preferences adapt over time?
-
-**Details:** See `docs/development-phases.md` → Phase 5
+**Success Criteria:**
+✅ TypeScript generates same quality digest as Python
+✅ Same cost profile (<$0.01)
+✅ No Python dependency
+✅ Deploys to Cloudflare Workers
 
 ---
 
-## 📋 Phase 6: Polish + Optimization (Week 6)
+## 🚀 PHASE 2: Python Production Polish (AFTER TYPESCRIPT)
 
-**Status:** Not Started
-**Goal:** GitHub-ready portfolio piece
+**Goal:** Make Python package fully production ready for Hetzner/local
 
-### High-Level Tasks
+### FastAPI HTTP Wrapper
 
-- [ ] Write comprehensive tests (>80% coverage)
-- [ ] Complete all documentation
-- [ ] Performance benchmarking
-- [ ] Optional: Implement Kimi K2 MCP server
-- [ ] Optional: Add on-demand refresh
-- [ ] Optional: Advanced trend analysis
-- [ ] Polish for GitHub showcase
+**File:** `packages/core/src/api.py` (NEW)
 
-**Details:** See `docs/development-phases.md` → Phase 6
+- [ ] Create FastAPI app
+- [ ] POST /api/digest/generate endpoint
+- [ ] GET /api/digest/{job_id}/progress endpoint
+- [ ] GET /api/digest/{job_id}/result endpoint
+- [ ] Background job processing
+- [ ] Webhook callbacks on completion
+- [ ] Test with curl
 
----
-
-## 🚀 Future Enhancements (Post-v2.0)
-
-**Ideas for later:**
-
-- [ ] Multi-language support
-- [ ] Audio digest (text-to-speech)
-- [ ] Email delivery option
-- [ ] Mobile app
-- [ ] Collaborative digests
-- [ ] Custom alert rules
-- [ ] Video/podcast summarization
-- [ ] Interactive Q&A with articles
+**Purpose:** Allows external systems to call Python package via HTTP
 
 ---
 
-## 📝 Notes & Decisions
+### Deployment Scripts
 
-### 2025-10-23: BaseProject Integration
-- Integrated BaseProject template from https://github.com/AutumnsGrove/BaseProject
-- Added ClaudeUsage/ directory with 18+ comprehensive workflow guides
-- Created CLAUDE.md with project-specific instructions
-- Created secrets_template.json for API key management
-- Updated .gitignore to include .claude/ directory
-- All BaseProject workflow guides now available in ClaudeUsage/ directory
-
-### 2025-10-23: Project Kickoff
-- Decided on Agent SDK + MCP architecture
-- User preferences finalized (9 topics, HN style)
-- 6-week timeline approved
-- Phase 1 scope: 2 topics, 3 sources, 4 agents
-
-### Next Decision Points
-- **End of Week 1:** Is Phase 1 digest good enough to continue?
-- **End of Week 2:** Are quality filters working?
-- **End of Week 4:** Web UI or stay with markdown?
-- **End of Week 5:** Is learning algorithm worth the complexity?
+- [ ] Create Dockerfile for Python package
+- [ ] Create docker-compose.yml
+- [ ] Create systemd service file for Hetzner
+- [ ] Create deployment script
+- [ ] Document Hetzner deployment process
 
 ---
 
-## 🐛 Known Issues & Blockers
+### Scheduling & Automation
 
-**None yet** - will track as development progresses
-
----
-
-## ⏰ Time Tracking
-
-| Phase | Planned | Actual | Status |
-|-------|---------|--------|--------|
-| Phase 1 | 7 days | — | In Progress |
-| Phase 2 | 7 days | — | Not Started |
-| Phase 3 | 7 days | — | Not Started |
-| Phase 4 | 7 days | — | Not Started |
-| Phase 5 | 7 days | — | Not Started |
-| Phase 6 | 7 days | — | Not Started |
-| **Total** | **42 days** | **—** | **—** |
+- [ ] Create cron job for scheduled digests
+- [ ] Email delivery integration
+- [ ] RSS feed generation
+- [ ] Error notifications
 
 ---
 
-**Remember:** The goal is to build something you'll actually use, not just a GitHub project. If you're not reading the digests, something is wrong!
+### Polish & Documentation
+
+- [ ] Add comprehensive logging
+- [ ] Add monitoring/health checks
+- [ ] Production README.md
+- [ ] Deployment guide
+- [ ] API documentation
+
+---
+
+## 📊 Package Status Summary
+
+| Package | Status | Deployment | Next Step |
+|---------|--------|------------|-----------|
+| **Python (core)** | 90% Ready ✅ | Hetzner/Local | FastAPI wrapper |
+| **TypeScript (worker)** | 40% Ready 🔨 | Cloudflare | Port core logic |
+
+---
+
+## 🔑 Quick Start Commands
+
+### Python Package
+```bash
+cd packages/core
+uv sync
+uv run python src/main.py
+# Output: outputs/daily_digests/YYYY-MM-DD.md
+```
+
+### TypeScript Worker
+```bash
+cd packages/worker
+pnpm run dev
+# Server: http://localhost:8787
+curl http://localhost:8787/api/test/env
+```
+
+---
+
+## 📁 Important Files
+
+**Python:**
+- `packages/core/src/main.py` - Entry point
+- `packages/core/secrets.json` - API keys (gitignored)
+- `packages/core/config/user_preferences.yaml` - Configuration
+
+**TypeScript:**
+- `packages/worker/src/index.ts` - Worker entry
+- `packages/worker/.dev.vars` - API keys (gitignored)
+- `packages/worker/wrangler.toml` - Cloudflare config
+
+**Documentation:**
+- `HANDOFF.md` - Detailed handoff doc (READ THIS FIRST!)
+- `CLAUDE.md` - Project instructions
+- `docs/v3-spec-hybrid-architecture.md` - Architecture spec
+
+---
+
+## 🎯 Success Metrics
+
+**Phase 1 Complete When:**
+- [ ] TypeScript Worker generates digests independently
+- [ ] No Python dependency
+- [ ] Same quality as Python version
+- [ ] Deploys to Cloudflare Workers
+- [ ] Cost < $0.01 per digest
+
+**Phase 2 Complete When:**
+- [ ] Python package has HTTP API
+- [ ] Docker deployment working
+- [ ] Scheduled on Hetzner VPS
+- [ ] Monitoring in place
+- [ ] Email delivery working
+
+---
+
+## ⚠️ Critical Notes
+
+1. **DeepSeek V3.2**: Use model ID `deepseek/deepseek-chat`
+2. **OpenRouter is PRIMARY**: Anthropic is fallback only
+3. **Copy Python prompts exactly**: They're tested and working
+4. **Budget**: $0.30 daily target, currently $0.0034 per run
+5. **HN Style**: Skeptical, technical, implications-focused
+
+---
+
+## 📞 Handoff Context
+
+See **HANDOFF.md** for complete details:
+- What's working (Python end-to-end ✅)
+- What needs work (TypeScript port 🔨)
+- API keys configured
+- Test commands
+- Success criteria
+- Architecture diagrams
+
+**Start here:** Port `services/search.ts` first - it's the simplest!
+
+---
+
+*Updated: December 25, 2025 | Next: TypeScript search service*

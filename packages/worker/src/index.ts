@@ -7,7 +7,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from './types';
-import { auth, digests, users, rss, webhooks } from './api';
+import { auth, digests, users, rss, webhooks, test } from './api';
 import { DigestJob, UserState, startDigestGeneration, getUserById } from './services';
 import {
   cors,
@@ -66,6 +66,11 @@ app.route('/rss', rss);
 
 // Webhooks (signature-verified)
 app.route('/api/webhooks', webhooks);
+
+// Test routes (development only)
+if (process.env.ENVIRONMENT !== 'production') {
+  app.route('/api/test', test);
+}
 
 // ============================================================================
 // Protected Routes
