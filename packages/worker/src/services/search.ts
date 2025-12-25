@@ -43,6 +43,18 @@ export interface SearchStats {
 
 const TAVILY_BASE_URL = 'https://api.tavily.com';
 
+// Rate limiting configuration
+const RATE_LIMIT_CONFIG = {
+  maxConcurrent: 2, // Maximum parallel requests
+  delayBetweenBatchesMs: 200, // Delay between batches of parallel requests
+  maxRetries: 3,
+  baseBackoffMs: 1000, // Start with 1 second backoff
+  maxTotalRetryMs: 30000, // Maximum total retry time (30 seconds)
+};
+
+/** Maximum number of search queries per topic */
+const MAX_QUERIES_PER_TOPIC = 3;
+
 const PREMIUM_SOURCES = [
   'arxiv.org',
   'nature.com',
@@ -92,8 +104,25 @@ export class SearchService {
 
   /**
    * Search for articles matching query.
+   * @param query - The search query string
+   * @param options - Optional search configuration
+   * @returns Array of search results
+   * @throws {SearchError} If query is invalid (empty, too long) or API request fails
+   * @throws {RateLimitError} If API rate limit is exceeded (429 status)
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+    // Input validation
+    if (!query || typeof query !== 'string') {
+      throw new SearchError('Query must be a non-empty string', 400);
+    }
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length === 0) {
+      throw new SearchError('Query cannot be empty or whitespace only', 400);
+    }
+    if (trimmedQuery.length > 1000) {
+      throw new SearchError('Query exceeds maximum length of 1000 characters', 400);
+    }
+
     const {
       maxResults = 10,
       searchDepth = 'advanced',
@@ -102,12 +131,15 @@ export class SearchService {
       daysBack,
     } = options;
 
+    // Validate maxResults bounds
+    const validatedMaxResults = Math.min(Math.max(1, maxResults), 100);
+
     const startTime = Date.now();
 
     const payload: Record<string, unknown> = {
       api_key: this.apiKey,
-      query,
-      max_results: maxResults,
+      query: trimmedQuery,
+      max_results: validatedMaxResults,
       search_depth: searchDepth,
       include_answer: false,
       include_raw_content: false,
@@ -136,13 +168,24 @@ export class SearchService {
       if (!response.ok) {
         const errorText = await response.text();
         this.stats.errors++;
+
+        // Throw RateLimitError for 429 status to enable retry logic
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          throw new RateLimitError(
+            `Tavily API rate limit: ${errorText}`,
+            retryAfter ? parseFloat(retryAfter) : undefined
+          );
+        }
+
         throw new SearchError(
           `Tavily API error (${response.status}): ${errorText}`,
           response.status
         );
       }
 
-      const data = (await response.json()) as TavilyResponse;
+      const rawData = await response.json();
+      const data = validateTavilyResponse(rawData);
       const results = this.parseResults(data);
 
       // Update stats
@@ -166,6 +209,18 @@ export class SearchService {
 
   /**
    * Search for articles on a specific topic with multiple queries.
+   *
+   * Implements automatic retry with exponential backoff for rate limits:
+   * - Up to {@link RATE_LIMIT_CONFIG.maxRetries} retry attempts per query (default: 3)
+   * - {@link RATE_LIMIT_CONFIG.maxTotalRetryMs}ms total retry timeout (default: 30s)
+   * - Runs up to {@link RATE_LIMIT_CONFIG.maxConcurrent} queries in parallel (default: 2)
+   * - Returns partial results if some queries fail (does not throw)
+   *
+   * @param topicName - The topic to search for
+   * @param keywords - Keywords to include in the search
+   * @param options - Optional search configuration including excludeKeywords and preferPremiumSources
+   * @returns Array of unique, deduplicated search results sorted by relevance.
+   *          Returns empty array if all queries fail.
    */
   async searchTopic(
     topicName: string,
@@ -177,16 +232,33 @@ export class SearchService {
     // Generate search queries
     const queries = this.generateTopicQueries(topicName, keywords, excludeKeywords);
 
-    // Execute searches (limit to 3 to avoid rate limits)
-    const resultsPerQuery = Math.ceil(maxResults / Math.min(queries.length, 3)) + 5;
-    const searchPromises = queries.slice(0, 3).map((query) =>
-      this.search(query, { ...searchOptions, maxResults: resultsPerQuery }).catch((err) => {
-        console.error(`Search query failed: ${query}`, err);
-        return [] as SearchResult[];
-      })
+    // Execute searches with rate limiting and concurrency control
+    // Uses a middle ground: run up to 2 queries in parallel, with delays between batches
+    // Validate resultsPerQuery against bounds (1-100) enforced by search()
+    const resultsPerQuery = Math.min(
+      100,
+      Math.ceil(maxResults / Math.min(queries.length, MAX_QUERIES_PER_TOPIC)) + 5
     );
+    const queriesToExecute = queries.slice(0, MAX_QUERIES_PER_TOPIC);
 
-    const resultsLists = await Promise.all(searchPromises);
+    const resultsLists: SearchResult[][] = [];
+    for (let i = 0; i < queriesToExecute.length; i += RATE_LIMIT_CONFIG.maxConcurrent) {
+      // Add delay between batches to avoid rate limits
+      if (i > 0) {
+        await this.delay(RATE_LIMIT_CONFIG.delayBetweenBatchesMs);
+      }
+
+      // Run batch of queries in parallel
+      const batch = queriesToExecute.slice(i, i + RATE_LIMIT_CONFIG.maxConcurrent);
+      const batchPromises = batch.map((query) =>
+        this.searchWithRetry(query, {
+          ...searchOptions,
+          maxResults: resultsPerQuery,
+        })
+      );
+      const batchResults = await Promise.all(batchPromises);
+      resultsLists.push(...batchResults);
+    }
 
     // Flatten and deduplicate by URL
     const seenUrls = new Set<string>();
@@ -214,6 +286,77 @@ export class SearchService {
     uniqueResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
     return uniqueResults.slice(0, maxResults);
+  }
+
+  /**
+   * Delay execution for specified milliseconds.
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Search with exponential backoff retry for rate limit errors.
+   * Includes timeout protection to prevent excessive delays.
+   * Returns empty array on failure to allow batch processing to continue.
+   */
+  private async searchWithRetry(
+    query: string,
+    options: SearchOptions
+  ): Promise<SearchResult[]> {
+    let lastError: Error | null = null;
+    const retryStartTime = Date.now();
+
+    for (let attempt = 0; attempt < RATE_LIMIT_CONFIG.maxRetries; attempt++) {
+      try {
+        return await this.search(query, options);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+
+        // Retry on rate limit errors (429)
+        // Defensive: check both error type AND status code in case error type changes
+        const isRateLimitError =
+          err instanceof RateLimitError ||
+          (err instanceof SearchError && err.statusCode === 429);
+
+        if (isRateLimitError) {
+          const backoffMs =
+            err instanceof RateLimitError && err.retryAfter
+              ? err.retryAfter * 1000
+              : RATE_LIMIT_CONFIG.baseBackoffMs * Math.pow(2, attempt);
+
+          // Check if waiting would exceed total retry timeout BEFORE waiting
+          const elapsedMs = Date.now() - retryStartTime;
+          if (elapsedMs + backoffMs > RATE_LIMIT_CONFIG.maxTotalRetryMs) {
+            console.error(
+              `Retry timeout would be exceeded for query "${query}" (elapsed: ${elapsedMs}ms, backoff: ${backoffMs}ms, limit: ${RATE_LIMIT_CONFIG.maxTotalRetryMs}ms)`
+            );
+            return [];
+          }
+
+          console.warn(
+            `Rate limited on query "${query}", retrying in ${backoffMs}ms (attempt ${attempt + 1}/${RATE_LIMIT_CONFIG.maxRetries})`
+          );
+          await this.delay(backoffMs);
+        } else {
+          // Don't retry other errors - return empty to allow batch processing to continue
+          const errorDetails = {
+            message: lastError.message,
+            name: lastError.name,
+            statusCode: (err as SearchError).statusCode,
+          };
+          console.error(`Search query failed: ${query}`, errorDetails);
+          return [];
+        }
+      }
+    }
+
+    // All retries exhausted
+    console.error(
+      `Search query failed after ${RATE_LIMIT_CONFIG.maxRetries} retries: ${query}`,
+      lastError?.message
+    );
+    return [];
   }
 
   /**
@@ -321,6 +464,38 @@ interface TavilyResult {
   score: number;
   published_date?: string;
   raw_content?: string;
+}
+
+/**
+ * Runtime validation for Tavily API response.
+ * Validates critical fields to catch API changes early.
+ */
+function validateTavilyResponse(data: unknown): TavilyResponse {
+  if (!data || typeof data !== 'object') {
+    throw new SearchError('Invalid Tavily response: expected object', 0);
+  }
+
+  const response = data as Record<string, unknown>;
+
+  if (!Array.isArray(response.results)) {
+    throw new SearchError('Invalid Tavily response: missing or invalid results array', 0);
+  }
+
+  // Validate each result has required fields
+  for (let i = 0; i < response.results.length; i++) {
+    const result = response.results[i] as Record<string, unknown>;
+    if (!result || typeof result !== 'object') {
+      throw new SearchError(`Invalid Tavily response: invalid result at index ${i}`, 0);
+    }
+    if (typeof result.url !== 'string') {
+      throw new SearchError(`Invalid Tavily response: missing url at index ${i}`, 0);
+    }
+    if (typeof result.title !== 'string') {
+      throw new SearchError(`Invalid Tavily response: missing title at index ${i}`, 0);
+    }
+  }
+
+  return data as TavilyResponse;
 }
 
 // ============================================================================

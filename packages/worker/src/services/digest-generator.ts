@@ -11,6 +11,36 @@ import { LLMService } from './llm';
 import { ParserService, type ParsedArticle } from './parser';
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+// User-configurable defaults (can be overridden via DigestGeneratorOptions)
+/** Default maximum articles to fetch per topic */
+const DEFAULT_MAX_ARTICLES_PER_TOPIC = 5;
+
+/** Default maximum concurrent article parsers */
+const DEFAULT_MAX_CONCURRENT_PARSERS = 5;
+
+/** Default lookback period in days for article search */
+const DEFAULT_LOOKBACK_DAYS = 7;
+
+// Internal LLM configuration (not user-configurable)
+/** Maximum tokens for search query generation */
+const LLM_SEARCH_QUERY_MAX_TOKENS = 100;
+
+/** Temperature for search query generation (lower = more deterministic) */
+const LLM_SEARCH_QUERY_TEMPERATURE = 0.3;
+
+/** Maximum tokens for topic synthesis */
+const LLM_SYNTHESIS_MAX_TOKENS = 1500;
+
+/** Temperature for synthesis (higher = more creative) */
+const LLM_SYNTHESIS_TEMPERATURE = 0.7;
+
+/** Maximum content preview length for article synthesis */
+const CONTENT_PREVIEW_LENGTH = 800;
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -139,9 +169,9 @@ export class DigestGenerator {
     options: DigestGeneratorOptions = {}
   ): Promise<GenerationResult> {
     const {
-      maxArticlesPerTopic = 5,
-      maxConcurrentParsers = 5,
-      lookbackDays = 7,
+      maxArticlesPerTopic = DEFAULT_MAX_ARTICLES_PER_TOPIC,
+      maxConcurrentParsers = DEFAULT_MAX_CONCURRENT_PARSERS,
+      lookbackDays = DEFAULT_LOOKBACK_DAYS,
       useLLMForParsing = false,
     } = options;
 
@@ -244,9 +274,9 @@ export class DigestGenerator {
 
       console.log(`Searching: ${topic.name}`);
 
-      // Generate optimized search query (for future use with direct search)
-      const _query = await this.generateSearchQuery(topic.name, topic.keywords);
-      void _query; // Will be used when we add direct search support
+      // NOTE: LLM-optimized search query generation is available via generateSearchQuery()
+      // but currently unused. When direct search support is added, uncomment:
+      // const query = await this.generateSearchQuery(topic.name, topic.keywords);
 
       // Execute search using topic-based search
       const results = await this.search.searchTopic(topic.name, topic.keywords, {
@@ -275,12 +305,16 @@ export class DigestGenerator {
 
     try {
       const response = await this.llm.complete(prompt, {
-        maxTokens: 100,
-        temperature: 0.3,
+        maxTokens: LLM_SEARCH_QUERY_MAX_TOKENS,
+        temperature: LLM_SEARCH_QUERY_TEMPERATURE,
       });
       return response.content.trim().replace(/^["']|["']$/g, '');
-    } catch {
-      // Fallback to simple query
+    } catch (error) {
+      // Log error before falling back to simple query
+      console.warn(
+        `Search query generation failed for topic "${topicName}":`,
+        error instanceof Error ? error.message : error
+      );
       return `${topicName} ${keywords.slice(0, 3).join(' ')} latest news`;
     }
   }
@@ -334,19 +368,17 @@ export class DigestGenerator {
 
       console.log(`Synthesizing section: ${topicName}`);
 
-      // Format articles for synthesis
-      const articlesText = articles
-        .map(
-          (a, i) => `
-Article ${i + 1}:
-Title: ${a.title}
-Source: ${a.source}
-URL: ${a.url}
-Reading Time: ${a.readingTimeMinutes} min
-Content Preview:
-${a.content.substring(0, 800)}`
-        )
-        .join('\n---\n');
+      // Format articles for synthesis using array-based concatenation for efficiency
+      const articleParts: string[] = [];
+      for (let i = 0; i < articles.length; i++) {
+        const a = articles[i];
+        // slice() handles length automatically - no ternary needed
+        const contentPreview = a.content.slice(0, CONTENT_PREVIEW_LENGTH);
+        articleParts.push(
+          `Article ${i + 1}:\nTitle: ${a.title}\nSource: ${a.source}\nURL: ${a.url}\nReading Time: ${a.readingTimeMinutes} min\nContent Preview:\n${contentPreview}`
+        );
+      }
+      const articlesText = articleParts.join('\n---\n');
 
       // Generate synthesis
       const prompt = PROMPTS.topicSynthesis
@@ -354,8 +386,8 @@ ${a.content.substring(0, 800)}`
         .replace('{{articles_text}}', articlesText);
 
       const response = await this.llm.complete(prompt, {
-        maxTokens: 1500,
-        temperature: 0.7,
+        maxTokens: LLM_SYNTHESIS_MAX_TOKENS,
+        temperature: LLM_SYNTHESIS_TEMPERATURE,
         systemPrompt: PROMPTS.synthesisSystemPrompt,
       });
 

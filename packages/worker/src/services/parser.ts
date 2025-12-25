@@ -69,6 +69,18 @@ export class ParserService {
   }
 
   /**
+   * Validate URL format.
+   */
+  private isValidUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Parse article from URL.
    */
   async parseArticle(
@@ -77,6 +89,16 @@ export class ParserService {
     source: string,
     options: ParserOptions = {}
   ): Promise<ParsedArticle | null> {
+    // Input validation
+    if (!url || typeof url !== 'string') {
+      console.error('Parse error: URL must be a non-empty string');
+      return null;
+    }
+    if (!this.isValidUrl(url)) {
+      console.error(`Parse error: Invalid URL format: ${url}`);
+      return null;
+    }
+
     const { useLLM = false, maxContentLength = 10000, timeout = 30000 } = options;
 
     const startTime = Date.now();
@@ -131,7 +153,22 @@ export class ParserService {
 
       return article;
     } catch (error) {
-      console.error(`Parse error for ${url}:`, error);
+      // Limit stack trace exposure in production for security
+      const isProduction = typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
+      const errorDetails = {
+        url,
+        expectedTitle,
+        source,
+        error: error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              ...(isProduction ? {} : { stack: error.stack?.split('\n').slice(0, 3).join('\n') }),
+            }
+          : String(error),
+        parseTimeMs: Date.now() - startTime,
+      };
+      console.error('Parse error:', errorDetails);
       this.stats.failureCount++;
       this.stats.totalTimeMs += Date.now() - startTime;
       return null;
