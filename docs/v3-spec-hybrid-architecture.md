@@ -56,11 +56,13 @@
 │  │                    COMPUTE LAYER                                 │   │
 │  │                                                                  │   │
 │  │  ┌───────────────────────┐     ┌───────────────────────────┐     │   │
-│  │  │  ON-DEMAND (Workers)  │     │  BATCH (Hetzner VPS)      │     │   │
-│  │  │  - Quick regeneration │     │  - Daily/weekly runs      │     │   │
-│  │  │  - Single-user digest │     │  - All users at once      │     │   │
-│  │  │  - 30-second timeout  │     │  - No timeout limits      │     │   │
-│  │  └───────────────────────┘     │  - Cost: ~$0.01/batch     │     │   │
+│  │  │  ON-DEMAND (Workers)  │     │  EPHEMERAL (Hetzner VPS)  │     │   │
+│  │  │  - Quick regeneration │     │  - Provision on-demand    │     │   │
+│  │  │  - Single-user digest │     │  - Run for 30-60 minutes  │     │   │
+│  │  │  - 30-second timeout  │     │  - Auto-destruct after    │     │   │
+│  │  └───────────────────────┘     │  - Cost: ~$0.005/digest   │     │   │
+│  │                                │  - Hourly billing         │     │   │
+│  │                                │  - 90% cost savings!      │     │   │
 │  │                                └───────────────────────────┘     │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
@@ -133,11 +135,14 @@ For the SaaS offering:
 4. Receive personalized digests via Web/RSS/Email
 
 **Infrastructure**:
-- Cloudflare Workers for orchestration
+- Cloudflare Workers for orchestration and API
 - Durable Objects for per-user state
-- D1 for user accounts and history
+- D1 for user accounts, history, and job tracking
 - R2 for digest storage and cache
-- Hetzner VPS for batch processing (daily runs)
+- Hetzner VPS for ephemeral digest generation (on-demand, hourly billing)
+  - Provisioned via Hetzner API when needed
+  - Auto-destroyed after completion
+  - 90% cost savings vs persistent server
 
 ---
 
@@ -669,11 +674,24 @@ CREATE TABLE artifacts (
 | Basic | Daily | 30 | $1.05 |
 | Pro | Daily + On-demand | 60 | $2.10 |
 
-### Batch Processing (Hetzner)
+### Ephemeral Processing (Hetzner On-Demand)
 
-For 100 users, daily batch:
-- VPS cost: ~$0.01 (30 min at €0.0085/hr)
-- Total: ~$0.30/day for 100 users
+**Per Digest**:
+- Server provision: 1-2 minutes
+- Digest generation: 20-30 minutes
+- Upload & destroy: 30 seconds
+- Total server time: ~30 minutes
+- Cost: ~$0.005 per digest (CPX11 @ $0.01/hour)
+
+**Monthly (60 digests/month for 1 user)**:
+- Compute: 60 × $0.005 = $0.30
+- API costs: 60 × $0.051 = $3.06
+- Total: $3.36/month
+
+**Cost Comparison**:
+- Ephemeral Hetzner: $40/year
+- Persistent Hetzner: $97/year
+- Savings: 59% cheaper!
 
 ---
 
