@@ -49,6 +49,7 @@ const RATE_LIMIT_CONFIG = {
   delayBetweenBatchesMs: 200, // Delay between batches of parallel requests
   maxRetries: 3,
   baseBackoffMs: 1000, // Start with 1 second backoff
+  maxTotalRetryMs: 30000, // Maximum total retry time (30 seconds)
 };
 
 const PREMIUM_SOURCES = [
@@ -100,6 +101,11 @@ export class SearchService {
 
   /**
    * Search for articles matching query.
+   * @param query - The search query string
+   * @param options - Optional search configuration
+   * @returns Array of search results
+   * @throws {SearchError} If query is invalid (empty, too long) or API request fails
+   * @throws {RateLimitError} If API rate limit is exceeded (429 status)
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
     // Input validation
@@ -200,6 +206,11 @@ export class SearchService {
 
   /**
    * Search for articles on a specific topic with multiple queries.
+   * Uses rate limiting and retry logic to handle API limits gracefully.
+   * @param topicName - The topic to search for
+   * @param keywords - Keywords to include in the search
+   * @param options - Optional search configuration including excludeKeywords and preferPremiumSources
+   * @returns Array of unique, deduplicated search results sorted by relevance
    */
   async searchTopic(
     topicName: string,
@@ -272,24 +283,39 @@ export class SearchService {
 
   /**
    * Search with exponential backoff retry for rate limit errors.
+   * Includes timeout protection to prevent excessive delays.
    */
   private async searchWithRetry(
     query: string,
     options: SearchOptions
   ): Promise<SearchResult[]> {
     let lastError: Error | null = null;
+    const retryStartTime = Date.now();
 
     for (let attempt = 0; attempt < RATE_LIMIT_CONFIG.maxRetries; attempt++) {
+      // Check if total retry time exceeded
+      if (Date.now() - retryStartTime > RATE_LIMIT_CONFIG.maxTotalRetryMs) {
+        console.error(
+          `Retry timeout exceeded for query "${query}" after ${Date.now() - retryStartTime}ms`
+        );
+        return [];
+      }
+
       try {
         return await this.search(query, options);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
 
-        // Only retry on rate limit errors (429)
-        if (err instanceof RateLimitError) {
-          const backoffMs = err.retryAfter
-            ? err.retryAfter * 1000
-            : RATE_LIMIT_CONFIG.baseBackoffMs * Math.pow(2, attempt);
+        // Retry on rate limit errors (429) - check both error type and status code for safety
+        const isRateLimitError =
+          err instanceof RateLimitError ||
+          (err instanceof SearchError && err.statusCode === 429);
+
+        if (isRateLimitError) {
+          const backoffMs =
+            err instanceof RateLimitError && err.retryAfter
+              ? err.retryAfter * 1000
+              : RATE_LIMIT_CONFIG.baseBackoffMs * Math.pow(2, attempt);
 
           console.warn(
             `Rate limited on query "${query}", retrying in ${backoffMs}ms (attempt ${attempt + 1}/${RATE_LIMIT_CONFIG.maxRetries})`

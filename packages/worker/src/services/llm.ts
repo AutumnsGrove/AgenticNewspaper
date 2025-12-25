@@ -145,6 +145,13 @@ export class LLMService {
 
   /**
    * Complete a prompt using OpenRouter.
+   * @param prompt - The prompt to complete
+   * @param options - Optional completion configuration
+   * @returns LLM response with content, token usage, and cost
+   * @throws {LLMError} If prompt is invalid (empty, too long) or API request fails
+   * @throws {AuthenticationError} If API key is invalid (401 status)
+   * @throws {RateLimitError} If API rate limit is exceeded (429 status)
+   * @throws {ModelNotFoundError} If specified model is not available (404 status)
    */
   async complete(prompt: string, options: CompletionOptions = {}): Promise<LLMResponse> {
     // Input validation
