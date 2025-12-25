@@ -7,7 +7,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from './types';
-import { auth, digests, users, rss, webhooks, test } from './api';
+import { auth, digests, users, rss, webhooks, test, jobs } from './api';
 import { DigestJob, UserState, startDigestGeneration } from './services';
 import {
   cors,
@@ -79,12 +79,16 @@ if (process.env.ENVIRONMENT !== 'production') {
 // Apply authentication middleware to protected routes
 app.use('/api/users/*', authenticate());
 app.use('/api/digests/*', authenticate());
+app.use('/api/jobs/*', authenticate());
 
 // User management
 app.route('/api/users', users);
 
 // Digest management
 app.route('/api/digests', digests);
+
+// Job management (ephemeral server provisioning)
+app.route('/api/jobs', jobs);
 
 // ============================================================================
 // Fallback

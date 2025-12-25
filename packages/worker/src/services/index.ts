@@ -27,3 +27,7 @@ export {
 } from './llm';
 export * from './parser';
 export * from './digest-generator';
+
+// Hetzner ephemeral server provisioning
+export * from './hetzner';
+export * from './cloud-init';

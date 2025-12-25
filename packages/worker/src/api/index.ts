@@ -8,3 +8,4 @@ export { users } from './users';
 export { rss } from './rss';
 export { webhooks } from './webhooks';
 export { default as test } from './test';
+export { default as jobs } from './jobs';
