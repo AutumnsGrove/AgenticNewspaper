@@ -5,16 +5,17 @@
  * Each user has their own UserState instance for isolation.
  */
 
-import type { Env, UserPreferences, Feedback, FeedbackType } from '../types';
+import type { Env, UserPreferences, FeedbackType } from '../types';
 
-interface FeedbackRecord {
-  id: string;
-  digest_id: string;
-  article_url: string | null;
-  feedback_type: string;
-  notes: string | null;
-  created_at: string;
-}
+// FeedbackRecord for mapping SQL results
+// interface FeedbackRecord {
+//   id: string;
+//   digest_id: string;
+//   article_url: string | null;
+//   feedback_type: string;
+//   notes: string | null;
+//   created_at: string;
+// }
 
 interface DigestHistoryRecord {
   digest_id: string;
@@ -27,12 +28,13 @@ interface DigestHistoryRecord {
 
 export class UserState implements DurableObject {
   private state: DurableObjectState;
-  private env: Env;
+  private _env: Env;
   private sql: SqlStorage;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
-    this.env = env;
+    this._env = env;
+    void this._env; // Reserved for future use
     this.sql = state.storage.sql;
 
     // Initialize SQLite schema on first access
@@ -254,7 +256,7 @@ export class UserState implements DurableObject {
         limit,
         offset
       )
-      .toArray() as DigestHistoryRecord[];
+      .toArray() as unknown as DigestHistoryRecord[];
 
     const countRow = this.sql.exec('SELECT COUNT(*) as cnt FROM digest_history').one() as {
       cnt: number;

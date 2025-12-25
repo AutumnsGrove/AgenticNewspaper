@@ -3,7 +3,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import type { Env, RateLimitInfo } from '../types';
+import type { Env } from '../types';
 import { verifyJwt } from '../api/auth';
 
 /**
@@ -83,8 +83,14 @@ export function rateLimit(config: { windowMs: number; maxRequests: number }) {
 /**
  * Authentication middleware.
  */
+interface AuthVariables {
+  userId: string;
+  userEmail: string;
+  userTier: string;
+}
+
 export function authenticate() {
-  return async (c: Context<{ Bindings: Env }>, next: Next) => {
+  return async (c: Context<{ Bindings: Env; Variables: AuthVariables }>, next: Next) => {
     const authHeader = c.req.header('Authorization');
 
     if (!authHeader?.startsWith('Bearer ')) {
@@ -173,7 +179,7 @@ export function errorHandler() {
             message: c.env.ENVIRONMENT === 'production' ? 'Internal server error' : message,
           },
         },
-        status
+        status as 500 | 400 | 401 | 403 | 404
       );
     }
   };

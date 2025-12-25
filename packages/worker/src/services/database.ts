@@ -4,7 +4,7 @@
  * Handles user accounts, digest records, feedback, and usage tracking.
  */
 
-import type { Env, User, UserPreferences, Feedback, UsageRecord, FeedbackType } from '../types';
+import type { User, UserPreferences, Feedback, UsageRecord, FeedbackType } from '../types';
 
 // ============================================================================
 // User Operations

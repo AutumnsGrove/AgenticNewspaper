@@ -5,17 +5,18 @@
  * Handles digest generation requests and progress tracking.
  */
 
-import type { Env, User, UserPreferences, Digest } from '../types';
-import { storeDigest, getDigest } from './storage';
+import type { Env, UserPreferences, Digest } from '../types';
+import { storeDigest } from './storage';
 import { sendDigestEmail, sendDigestNotificationEmail } from './email';
 import { getUserById } from './database';
 
-interface DigestGenerationRequest {
-  userId: string;
-  jobId: string;
-  preferences: UserPreferences;
-  webhookUrl?: string;
-}
+// DigestGenerationRequest: Used for type reference (JSON body sent to Python API)
+// interface DigestGenerationRequest {
+//   userId: string;
+//   jobId: string;
+//   preferences: UserPreferences;
+//   webhookUrl?: string;
+// }
 
 interface DigestProgress {
   jobId: string;
@@ -75,7 +76,7 @@ export async function startDigestGeneration(
         job_id: jobId,
         preferences: convertPreferences(preferences),
         webhook_url: webhookUrl,
-      } satisfies Partial<DigestGenerationRequest>),
+      }),
     });
 
     if (!response.ok) {
@@ -254,7 +255,7 @@ export async function handleDigestComplete(
         processingTimeSeconds: 0,
       },
       sections: [], // Will be parsed from markdown if needed
-      markdown,
+      // Note: markdown stored separately in R2, not in digest object
     };
 
     // Store digest in R2
@@ -268,11 +269,12 @@ export async function handleDigestComplete(
 
     // Send email notification if user has email channel enabled
     const prefs = user.preferences;
-    if (prefs?.channels?.includes('email')) {
+    if (prefs?.delivery?.channels?.includes('email')) {
       const webUrl = env.WEB_URL || 'https://clearing.autumnsgrove.com';
 
-      // Full digest email or notification based on preference
-      if (prefs.emailFormat === 'full') {
+      // Send digest notification (full email format not yet implemented)
+      const sendFullDigest = false; // TODO: Add emailFormat to preferences
+      if (sendFullDigest) {
         await sendDigestEmail(env, {
           to: user.email,
           userId: user.id,
@@ -355,9 +357,9 @@ function convertPreferences(prefs: UserPreferences): Record<string, unknown> {
       include_cross_connections: prefs.style.includeCrossConnections,
     },
     delivery: {
-      frequency: prefs.deliveryFrequency,
-      time: prefs.deliveryTime,
-      channels: prefs.channels,
+      frequency: prefs.delivery.frequency,
+      time: prefs.delivery.deliveryTimeUtc,
+      channels: prefs.delivery.channels,
     },
     budget: {
       daily_target_usd: 0.3,

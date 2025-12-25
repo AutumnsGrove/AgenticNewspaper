@@ -4,7 +4,7 @@
  * Generates per-user RSS feeds for digest delivery.
  */
 
-import type { Env, Digest, DigestSection, Article } from '../types';
+import type { Digest, DigestSection, Article } from '../types';
 
 interface RssFeedOptions {
   userId: string;

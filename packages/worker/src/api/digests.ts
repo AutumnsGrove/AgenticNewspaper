@@ -6,14 +6,14 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { Env, DigestJobProgress, Digest } from '../types';
+import type { Env, DigestJobProgress } from '../types';
 import {
   listUserDigestRecords,
   getDigestRecord,
   createFeedback,
   incrementUsage,
 } from '../services/database';
-import { getDigest, listUserDigests, storeDigest } from '../services/storage';
+import { getDigest } from '../services/storage';
 
 const digests = new Hono<{ Bindings: Env; Variables: { userId: string } }>();
 

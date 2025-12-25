@@ -288,7 +288,7 @@ export async function getAuthenticatedUser(
   if (!user) {
     // Try to refresh
     try {
-      const clientSecret = env.HEARTWOOD_CLIENT_SECRET;
+      const clientSecret = env.HEARTWOOD_CLIENT_SECRET || '';
       const newTokens = await refreshAccessToken(session.refreshToken, clientSecret);
 
       // Update session with new tokens

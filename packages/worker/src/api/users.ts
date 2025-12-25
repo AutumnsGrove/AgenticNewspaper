@@ -10,7 +10,6 @@ import type { Env, UserPreferences } from '../types';
 import {
   getUserById,
   updateUserPreferences,
-  updateUserTier,
   generateRssToken,
   deleteUser,
   getUserUsageHistory,

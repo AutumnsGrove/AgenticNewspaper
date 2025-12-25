@@ -8,7 +8,7 @@
 import { Hono } from 'hono';
 import type { Env } from './types';
 import { auth, digests, users, rss, webhooks, test } from './api';
-import { DigestJob, UserState, startDigestGeneration, getUserById } from './services';
+import { DigestJob, UserState, startDigestGeneration } from './services';
 import {
   cors,
   rateLimit,
@@ -110,7 +110,7 @@ interface ScheduledEvent {
   scheduledTime: number;
 }
 
-async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+async function handleScheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
   console.log(`Scheduled event: ${event.cron} at ${new Date(event.scheduledTime).toISOString()}`);
 
   // Different cron patterns for different tasks
