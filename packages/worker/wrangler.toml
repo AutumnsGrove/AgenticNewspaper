@@ -1,0 +1,123 @@
+# The Daily Clearing - Cloudflare Workers Configuration
+name = "daily-clearing"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Development settings
+[dev]
+port = 8787
+
+# D1 Database bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "daily-clearing-db"
+database_id = "placeholder-id"
+migrations_dir = "schemas/migrations"
+
+# R2 Storage bindings
+[[r2_buckets]]
+binding = "DIGESTS"
+bucket_name = "daily-clearing-digests"
+
+[[r2_buckets]]
+binding = "CACHE"
+bucket_name = "daily-clearing-cache"
+
+# Durable Objects bindings
+[[durable_objects.bindings]]
+name = "DIGEST_JOB"
+class_name = "DigestJob"
+
+[[durable_objects.bindings]]
+name = "USER_STATE"
+class_name = "UserState"
+
+# Migrations for Durable Objects
+[[migrations]]
+tag = "v1"
+new_classes = ["DigestJob", "UserState"]
+
+# KV Namespaces for rate limiting and session tokens
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "placeholder-id"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "placeholder-id"
+
+# Environment variables (secrets set via wrangler secret)
+[vars]
+ENVIRONMENT = "development"
+
+# Staging environment
+[env.staging]
+name = "daily-clearing-staging"
+vars = { ENVIRONMENT = "staging" }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "daily-clearing-db-staging"
+database_id = "placeholder-staging-id"
+migrations_dir = "schemas/migrations"
+
+[[env.staging.r2_buckets]]
+binding = "DIGESTS"
+bucket_name = "daily-clearing-digests-staging"
+
+[[env.staging.r2_buckets]]
+binding = "CACHE"
+bucket_name = "daily-clearing-cache-staging"
+
+[[env.staging.durable_objects.bindings]]
+name = "DIGEST_JOB"
+class_name = "DigestJob"
+
+[[env.staging.durable_objects.bindings]]
+name = "USER_STATE"
+class_name = "UserState"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "placeholder-staging-id"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSIONS"
+id = "placeholder-staging-id"
+
+# Production environment
+[env.production]
+name = "daily-clearing"
+routes = [{ pattern = "clearing.autumnsgrove.com", custom_domain = true }]
+vars = { ENVIRONMENT = "production" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "daily-clearing-db"
+database_id = "placeholder-production-id"
+migrations_dir = "schemas/migrations"
+
+[[env.production.r2_buckets]]
+binding = "DIGESTS"
+bucket_name = "daily-clearing-digests"
+
+[[env.production.r2_buckets]]
+binding = "CACHE"
+bucket_name = "daily-clearing-cache"
+
+[[env.production.durable_objects.bindings]]
+name = "DIGEST_JOB"
+class_name = "DigestJob"
+
+[[env.production.durable_objects.bindings]]
+name = "USER_STATE"
+class_name = "UserState"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "placeholder-production-id"
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "placeholder-production-id"
