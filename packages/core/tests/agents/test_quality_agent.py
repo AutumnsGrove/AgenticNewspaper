@@ -3,14 +3,20 @@ Tests for the Quality Agent.
 """
 
 import pytest
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 
 from src.agents.tier2_reasoning.quality_agent import (
     QualityAgent,
+    TopicConfig,
+)
+from src.models.article import (
     QualityAnalysis,
     ContentType,
+    ParsedArticle,
 )
+from src.providers.base import LLMResponse
 
 
 # ============================================================================
@@ -41,11 +47,11 @@ class TestQualityAnalysis:
             quality_score=0.85,
             key_points=["Point 1", "Point 2", "Point 3"],
             why_matters="This is important because...",
-            technical_insights=["Insight 1", "Insight 2"],
+            implications=["Implication 1", "Implication 2"],  # Not technical_insights
         )
         assert len(analysis.key_points) == 3
         assert analysis.why_matters is not None
-        assert len(analysis.technical_insights) == 2
+        assert len(analysis.implications) == 2
 
     def test_analysis_default_values(self):
         """Test analysis default values."""
@@ -99,9 +105,9 @@ class TestContentType:
         """Test opinion content type."""
         assert ContentType.OPINION.value == "opinion"
 
-    def test_tutorial_type(self):
-        """Test tutorial content type."""
-        assert ContentType.TUTORIAL.value == "tutorial"
+    def test_analysis_type(self):
+        """Test analysis content type (no TUTORIAL)."""
+        assert ContentType.ANALYSIS.value == "analysis"
 
     def test_all_types_defined(self):
         """Test that all expected types are defined."""
@@ -109,6 +115,7 @@ class TestContentType:
         assert "research" in types
         assert "news" in types
         assert "opinion" in types
+        assert "analysis" in types
 
 
 # ============================================================================
@@ -125,27 +132,62 @@ class TestQualityAgentInit:
         agent = QualityAgent(provider=mock_provider)
         assert agent.provider == mock_provider
 
-    def test_init_with_preferences(self):
-        """Test initialization with user preferences."""
+    def test_init_with_config(self):
+        """Test initialization with topic configuration."""
         mock_provider = MagicMock()
-        preferences = {"min_quality": 0.6, "technical_depth": 4}
-        agent = QualityAgent(provider=mock_provider, preferences=preferences)
-        assert agent.preferences == preferences
+        config = TopicConfig(name="AI", min_quality=0.6, prefer_technical=True)
+        agent = QualityAgent(provider=mock_provider, default_config=config)
+        assert agent.default_config.name == "AI"
+        assert agent.default_config.min_quality == 0.6
 
 
 # ============================================================================
-# Quality Agent Evaluation Tests
+# Helper Functions
 # ============================================================================
 
 
-class TestQualityAgentEvaluate:
-    """Tests for Quality Agent evaluation method."""
+def _make_article(
+    title: str = "Test Article",
+    content: str = "Test content for the article.",
+    source: str = "test.com",
+) -> ParsedArticle:
+    """Helper to create test articles."""
+    return ParsedArticle(
+        article_id="test-001",
+        url=f"https://{source}/article",
+        title=title,
+        content=content,
+        source=source,
+    )
+
+
+def _make_response(data: dict) -> LLMResponse:
+    """Create a mock LLM response with JSON content."""
+    return LLMResponse(
+        content=json.dumps(data),
+        model="test-model",
+        provider="test",
+        input_tokens=100,
+        output_tokens=50,
+        cost_usd=0.001,
+        response_time_seconds=1.0,
+    )
+
+
+# ============================================================================
+# Quality Agent Analyze Tests
+# ============================================================================
+
+
+class TestQualityAgentAnalyze:
+    """Tests for Quality Agent analyze method."""
 
     @pytest.fixture
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -156,10 +198,9 @@ class TestQualityAgentEvaluate:
     @pytest.fixture
     def sample_article(self):
         """Create a sample article for testing."""
-        return {
-            "url": "https://example.com/article",
-            "title": "AI Breakthrough: New Model Achieves Record Performance",
-            "content": """
+        return _make_article(
+            title="AI Breakthrough: New Model Achieves Record Performance",
+            content="""
             Researchers have developed a new AI model that achieves state-of-the-art
             performance on multiple benchmarks. The model uses a novel architecture
             that combines transformer attention with sparse mixture-of-experts.
@@ -172,14 +213,13 @@ class TestQualityAgentEvaluate:
             The implications for the field are significant, as this approach
             could enable more efficient deployment of large language models.
             """,
-            "source": "arxiv.org",
-            "word_count": 150,
-        }
+            source="arxiv.org",
+        )
 
     @pytest.mark.asyncio
-    async def test_evaluate_returns_analysis(self, agent, mock_provider, sample_article):
-        """Test that evaluate returns a QualityAnalysis."""
-        mock_provider.complete_json.return_value = {
+    async def test_analyze_returns_analysis(self, agent, mock_provider, sample_article):
+        """Test that analyze returns a QualityAnalysis."""
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.85,
             "quality_score": 0.78,
             "novelty_score": 0.72,
@@ -188,28 +228,30 @@ class TestQualityAgentEvaluate:
             "key_points": ["Point 1", "Point 2"],
             "why_matters": "Important for AI development",
             "content_type": "research",
-        }
+            "should_include": True,
+        })
 
-        analysis = await agent.evaluate(sample_article)
+        analysis = await agent.analyze(sample_article)
         assert isinstance(analysis, QualityAnalysis)
         assert analysis.relevance_score == 0.85
 
     @pytest.mark.asyncio
-    async def test_evaluate_with_topic_context(self, agent, mock_provider, sample_article):
-        """Test evaluation with topic context."""
-        mock_provider.complete_json.return_value = {
+    async def test_analyze_with_topic_config(self, agent, mock_provider, sample_article):
+        """Test analysis with topic configuration."""
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.90,
             "quality_score": 0.85,
-        }
+            "should_include": True,
+        })
 
-        topic = {"name": "AI", "keywords": ["artificial intelligence"]}
-        analysis = await agent.evaluate(sample_article, topic=topic)
+        topic = TopicConfig(name="AI", keywords=["artificial intelligence"])
+        analysis = await agent.analyze(sample_article, topic_config=topic)
         assert analysis is not None
 
     @pytest.mark.asyncio
-    async def test_evaluate_extracts_key_points(self, agent, mock_provider, sample_article):
-        """Test that evaluation extracts key points."""
-        mock_provider.complete_json.return_value = {
+    async def test_analyze_extracts_key_points(self, agent, mock_provider, sample_article):
+        """Test that analysis extracts key points."""
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.8,
             "quality_score": 0.8,
             "key_points": [
@@ -217,41 +259,42 @@ class TestQualityAgentEvaluate:
                 "50% cost reduction",
                 "Multi-domain applicability",
             ],
-        }
+            "should_include": True,
+        })
 
-        analysis = await agent.evaluate(sample_article)
+        analysis = await agent.analyze(sample_article)
         assert len(analysis.key_points) == 3
 
     @pytest.mark.asyncio
-    async def test_evaluate_identifies_content_type(self, agent, mock_provider, sample_article):
-        """Test that evaluation identifies content type."""
-        mock_provider.complete_json.return_value = {
+    async def test_analyze_identifies_content_type(self, agent, mock_provider, sample_article):
+        """Test that analysis identifies content type."""
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.8,
             "quality_score": 0.8,
-            "content_type": "research",
-        }
+            "content_type": "RESEARCH",
+            "should_include": True,
+        })
 
-        analysis = await agent.evaluate(sample_article)
+        analysis = await agent.analyze(sample_article)
         assert analysis.content_type == ContentType.RESEARCH
 
     @pytest.mark.asyncio
-    async def test_evaluate_handles_low_quality(self, agent, mock_provider):
-        """Test evaluation of low-quality content."""
-        low_quality_article = {
-            "url": "https://example.com/spam",
-            "title": "Click Here!!!",
-            "content": "Buy now! Limited offer!",
-            "source": "spam.com",
-            "word_count": 10,
-        }
+    async def test_analyze_handles_low_quality(self, agent, mock_provider):
+        """Test analysis of low-quality content."""
+        low_quality_article = _make_article(
+            title="Click Here!!!",
+            content="Buy now! Limited offer!",
+            source="spam.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.1,
             "quality_score": 0.1,
             "skip_reason": "Appears to be spam or promotional content.",
-        }
+            "should_include": False,
+        })
 
-        analysis = await agent.evaluate(low_quality_article)
+        analysis = await agent.analyze(low_quality_article)
         assert analysis.quality_score < 0.5
         assert analysis.skip_reason is not None
 
@@ -268,7 +311,8 @@ class TestQualityScoring:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -279,60 +323,61 @@ class TestQualityScoring:
     @pytest.mark.asyncio
     async def test_high_quality_research_paper(self, agent, mock_provider):
         """Test scoring of high-quality research paper."""
-        article = {
-            "title": "Novel Approach to Neural Architecture Search",
-            "content": "We present a comprehensive study..." * 100,
-            "source": "arxiv.org",
-            "word_count": 3000,
-        }
+        article = _make_article(
+            title="Novel Approach to Neural Architecture Search",
+            content="We present a comprehensive study..." * 100,
+            source="arxiv.org",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.95,
             "quality_score": 0.92,
             "novelty_score": 0.88,
             "credibility_score": 0.95,
-        }
+            "content_type": "RESEARCH",
+            "should_include": True,
+        })
 
-        analysis = await agent.evaluate(article)
+        analysis = await agent.analyze(article)
         assert analysis.quality_score >= 0.8
 
     @pytest.mark.asyncio
     async def test_news_article_scoring(self, agent, mock_provider):
         """Test scoring of news article."""
-        article = {
-            "title": "Company Announces New Product",
-            "content": "Today, the company revealed..." * 50,
-            "source": "techcrunch.com",
-            "word_count": 500,
-        }
+        article = _make_article(
+            title="Company Announces New Product",
+            content="Today, the company revealed..." * 50,
+            source="techcrunch.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.75,
             "quality_score": 0.70,
             "novelty_score": 0.60,
-            "content_type": "news",
-        }
+            "content_type": "NEWS",
+            "should_include": True,
+        })
 
-        analysis = await agent.evaluate(article)
+        analysis = await agent.analyze(article)
         assert analysis.content_type == ContentType.NEWS
 
     @pytest.mark.asyncio
     async def test_opinion_piece_scoring(self, agent, mock_provider):
         """Test scoring of opinion piece."""
-        article = {
-            "title": "Why AI Will Change Everything",
-            "content": "In my opinion..." * 50,
-            "source": "medium.com",
-            "word_count": 800,
-        }
+        article = _make_article(
+            title="Why AI Will Change Everything",
+            content="In my opinion..." * 50,
+            source="medium.com",
+        )
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.65,
             "quality_score": 0.55,
-            "content_type": "opinion",
-        }
+            "content_type": "OPINION",
+            "should_include": True,
+        })
 
-        analysis = await agent.evaluate(article)
+        analysis = await agent.analyze(article)
         assert analysis.content_type == ContentType.OPINION
 
 
@@ -348,7 +393,8 @@ class TestQualityAgentErrors:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -359,36 +405,43 @@ class TestQualityAgentErrors:
     @pytest.mark.asyncio
     async def test_handles_provider_error(self, agent, mock_provider):
         """Test handling of provider errors."""
-        mock_provider.complete_json.side_effect = Exception("API Error")
+        mock_provider.complete.side_effect = Exception("API Error")
 
-        article = {"title": "Test", "content": "Content", "source": "test.com"}
+        article = _make_article()
 
         with pytest.raises(Exception):
-            await agent.evaluate(article)
+            await agent.analyze(article)
 
     @pytest.mark.asyncio
     async def test_handles_invalid_response(self, agent, mock_provider):
         """Test handling of invalid LLM response."""
-        mock_provider.complete_json.return_value = {
-            "invalid": "response",
-        }
+        mock_provider.complete.return_value = LLMResponse(
+            content='{"invalid": "response"}',
+            model="test",
+            provider="test",
+            input_tokens=10,
+            output_tokens=5,
+            cost_usd=0.0,
+            response_time_seconds=0.5,
+        )
 
-        article = {"title": "Test", "content": "Content", "source": "test.com"}
-        analysis = await agent.evaluate(article)
+        article = _make_article()
+        analysis = await agent.analyze(article)
         # Should use default values
-        assert analysis.relevance_score == 0.0
+        assert analysis.relevance_score == 0.5  # Default on parse error
 
     @pytest.mark.asyncio
     async def test_handles_empty_content(self, agent, mock_provider):
         """Test handling of empty article content."""
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.0,
             "quality_score": 0.0,
             "skip_reason": "No content to analyze",
-        }
+            "should_include": False,
+        })
 
-        article = {"title": "", "content": "", "source": "test.com"}
-        analysis = await agent.evaluate(article)
+        article = _make_article(title="", content="")
+        analysis = await agent.analyze(article)
         assert analysis.skip_reason is not None
 
 
@@ -404,7 +457,8 @@ class TestQualityAgentIntegration:
     def mock_provider(self):
         """Create a mock LLM provider."""
         provider = MagicMock()
-        provider.complete_json = AsyncMock()
+        provider.complete = AsyncMock()
+        provider.get_stats = MagicMock(return_value={})
         return provider
 
     @pytest.fixture
@@ -413,40 +467,40 @@ class TestQualityAgentIntegration:
         return QualityAgent(provider=mock_provider)
 
     @pytest.mark.asyncio
-    async def test_batch_evaluation(self, agent, mock_provider):
-        """Test evaluating multiple articles."""
+    async def test_batch_analyze(self, agent, mock_provider):
+        """Test analyzing multiple articles via batch_analyze."""
         articles = [
-            {"title": f"Article {i}", "content": f"Content {i}" * 50, "source": "test.com"}
+            _make_article(title=f"Article {i}", content=f"Content {i}" * 50)
             for i in range(5)
         ]
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.8,
             "quality_score": 0.75,
-        }
+            "should_include": True,
+        })
 
-        results = []
-        for article in articles:
-            result = await agent.evaluate(article)
-            results.append(result)
-
+        results = await agent.batch_analyze(articles)
         assert len(results) == 5
         assert all(isinstance(r, QualityAnalysis) for r in results)
 
     @pytest.mark.asyncio
-    async def test_evaluation_with_preferences(self, agent, mock_provider):
-        """Test evaluation respects user preferences."""
-        agent.preferences = {
-            "min_quality": 0.7,
-            "preferred_topics": ["AI", "ML"],
-        }
+    async def test_analyze_with_config(self, agent, mock_provider):
+        """Test analysis respects topic configuration."""
+        config = TopicConfig(
+            name="AI",
+            keywords=["AI", "ML"],
+            min_quality=0.7,
+        )
+        agent_with_config = QualityAgent(provider=mock_provider, default_config=config)
 
-        mock_provider.complete_json.return_value = {
+        mock_provider.complete.return_value = _make_response({
             "relevance_score": 0.9,
             "quality_score": 0.85,
-        }
+            "should_include": True,
+        })
 
-        article = {"title": "AI News", "content": "Content about AI", "source": "test.com"}
-        analysis = await agent.evaluate(article)
+        article = _make_article(title="AI News", content="Content about AI")
+        analysis = await agent_with_config.analyze(article)
 
         assert analysis.quality_score >= 0.7
