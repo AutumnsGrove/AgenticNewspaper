@@ -1,0 +1,97 @@
+{
+  "version": "1.0.0",
+  "description": "Unified prompts for The Daily Clearing - used by both Python and TypeScript packages",
+  "updated": "2025-12-25",
+
+  "system_prompts": {
+    "quality_analysis": "You are an expert content analyst for a Hacker News-style news aggregator called \"The Daily Clearing\". Your role is to evaluate articles for quality, relevance, and newsworthiness.\n\nYou analyze content with the skeptical, technically-minded perspective of a HN reader:\n- Prefer primary sources over press releases\n- Value technical depth over marketing fluff\n- Identify genuine novelty vs. incremental updates\n- Detect hype vs. substance\n- Appreciate clear, honest writing\n\nFor each article, you provide:\n1. Quality scores (0.0-1.0) across multiple dimensions\n2. Content classification\n3. Key points that matter\n4. Why this matters to a technical audience\n5. Potential implications\n\nBe brutally honest. Most content is mediocre - don't inflate scores. A 0.7+ should be genuinely good content.\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no explanations outside JSON.",
+
+    "synthesis": "You are a veteran Hacker News commenter known for technical depth and skeptical analysis."
+  },
+
+  "prompts": {
+    "search_query_generation": {
+      "description": "Generate optimized search query for finding articles",
+      "template": "Generate a search query for finding recent, high-quality articles about: {{topic_name}}\n\nInclude these concepts: {{keywords}}\nExclude: {{exclude_keywords}}\n\nRequirements:\n- Focus on recent news/research (last 30 days preferred)\n- Prefer technical depth over clickbait\n- Target sources like HN, ArsTechnica, ArXiv, Nature\n\nReturn ONLY the search query, no explanation.",
+      "variables": ["topic_name", "keywords", "exclude_keywords"],
+      "max_tokens": 100,
+      "temperature": 0.3
+    },
+
+    "relevance_scoring": {
+      "description": "Score search results for relevance to topic",
+      "template": "Rate the relevance of these search results for topic \"{{topic_name}}\".\nKeywords: {{keywords}}\n\nSearch Results:\n{{results_text}}\n\nFor each result (1-{{num_results}}), provide a relevance score from 0.0 to 1.0.\nFormat: \"1: 0.85, 2: 0.72, 3: 0.91\" etc.\n\nScores only, no explanation:",
+      "variables": ["topic_name", "keywords", "results_text", "num_results"],
+      "max_tokens": 100,
+      "temperature": 0.2
+    },
+
+    "html_extraction": {
+      "description": "Extract article content from HTML",
+      "template": "Extract the main article content from this HTML:\n\nURL: {{url}}\nExpected title: {{expected_title}}\n\nHTML:\n{{html_content}}\n\nExtract and return in this format:\nTITLE: [article title]\nAUTHOR: [author name or \"Unknown\"]\nCONTENT: [main article text, no HTML tags, preserve paragraphs with double newlines]\n\nFocus on the main article content, ignore navigation, ads, and sidebars.",
+      "variables": ["url", "expected_title", "html_content"],
+      "max_tokens": 2000,
+      "temperature": 0.1
+    },
+
+    "topic_synthesis": {
+      "description": "Synthesize articles into HN-style digest section",
+      "template": "You are writing a Hacker News-style digest section about: {{topic_name}}\n\nArticles to synthesize:\n{{articles_text}}\n\nWrite an engaging section that:\n1. Groups related articles together\n2. Uses technical, skeptical HN-style commentary\n3. Focuses on \"why this matters\" and implications\n4. Highlights key technical details and trade-offs\n5. Avoids hype - be measured and analytical\n6. Each article gets 2-3 sentences maximum\n\nFormat:\n## {{topic_name}}\n\n[Your synthesis of the articles in HN comment style]\n\n### Article Title 1\n*Source: [source] | [reading time]*\n\n[2-3 sentence HN-style summary focusing on implications and technical details]\n\n[Source link]\n\n---\n\nContinue for each article. Be concise but insightful.",
+      "variables": ["topic_name", "articles_text"],
+      "max_tokens": 1500,
+      "temperature": 0.7
+    },
+
+    "quality_analysis": {
+      "description": "Full quality and relevance analysis of an article",
+      "template": "Analyze this article for quality and relevance.\n\nTOPIC: {{topic_name}}\nKEYWORDS TO MATCH: {{keywords}}\nKEYWORDS TO AVOID: {{exclude_keywords}}\nUSER INTERESTS: {{user_interests}}\nTECHNICAL PREFERENCE: {{technical_preference}}\n\nARTICLE:\nTitle: {{title}}\nSource: {{source}}\nAuthor: {{author}}\nWord Count: {{word_count}}\nPublished: {{published_date}}\n\nContent:\n{{content}}\n\nRespond with JSON:\n{\n    \"relevance_score\": 0.0-1.0,\n    \"quality_score\": 0.0-1.0,\n    \"novelty_score\": 0.0-1.0,\n    \"depth_score\": 0.0-1.0,\n    \"credibility_score\": 0.0-1.0,\n    \"content_type\": \"news|opinion|analysis|research|press_release|blog|unknown\",\n    \"technical_level\": 1-5,\n    \"key_points\": [\"point1\", \"point2\", \"point3\"],\n    \"why_matters\": \"One sentence on why this matters\",\n    \"implications\": [\"implication1\", \"implication2\"],\n    \"originality_indicators\": [\"indicator1\"],\n    \"skip_reason\": null,\n    \"should_include\": true\n}",
+      "variables": ["topic_name", "keywords", "exclude_keywords", "user_interests", "technical_preference", "title", "source", "author", "word_count", "published_date", "content"],
+      "max_tokens": 1000,
+      "temperature": 0.3
+    },
+
+    "quick_relevance_filter": {
+      "description": "Quick yes/no relevance check for filtering",
+      "template": "Quick relevance check. Is this article relevant to \"{{topic_name}}\"?\n\nTitle: {{title}}\nSource: {{source}}\nPreview: {{preview}}\n\nKeywords to match: {{keywords}}\n\nRespond with ONLY \"yes\" or \"no\".",
+      "variables": ["topic_name", "title", "source", "preview", "keywords"],
+      "max_tokens": 10,
+      "temperature": 0.0
+    }
+  },
+
+  "templates": {
+    "digest_header": "# Daily Tech Digest\n\n**{{date}}**\n\n*Your personalized HN-style news digest*\n\n---",
+
+    "digest_footer": "---\n\n## Digest Stats\n\n- **Articles Found**: {{articles_found}}\n- **Articles Parsed**: {{articles_parsed}}\n- **Articles Included**: {{articles_included}}\n- **Topics**: {{topics}}\n- **Processing Time**: {{processing_time}}s\n- **Total Tokens Used**: {{tokens_used}}\n- **Estimated Cost**: ${{cost}}\n\n---\n\n*Generated by The Daily Clearing v{{version}}*\n*{{timestamp}}*",
+
+    "article_format": "### {{title}}\n*Source: {{source}} | {{reading_time}} min read*\n\n{{summary}}\n\n[Read more]({{url}})\n\n---"
+  },
+
+  "config": {
+    "default_model": "deepseek/deepseek-chat",
+    "fallback_model": "anthropic/claude-3.5-haiku",
+    "content_truncation": {
+      "html_preview": 4000,
+      "article_preview": 800,
+      "full_content": 6000
+    },
+    "premium_sources": [
+      "arxiv.org",
+      "nature.com",
+      "science.org",
+      "arstechnica.com",
+      "wired.com",
+      "techcrunch.com",
+      "theverge.com",
+      "news.ycombinator.com",
+      "github.com",
+      "openai.com",
+      "anthropic.com",
+      "deepmind.com",
+      "mit.edu",
+      "stanford.edu",
+      "acm.org",
+      "ieee.org"
+    ]
+  }
+}

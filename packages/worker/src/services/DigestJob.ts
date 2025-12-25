@@ -5,37 +5,41 @@
  * Each user has their own DigestJob instance for isolation.
  */
 
-import type { Env, DigestJobState, DigestJobProgress, JobStatus, Article } from '../types';
+import type { Env, DigestJobState, DigestJobProgress, JobStatus } from '../types';
 
-interface StoredArticle {
-  id: string;
-  url: string;
-  title: string;
-  content: string;
-  source: string;
-  topic: string;
-  relevanceScore: number;
-  qualityScore: number;
-  biasDirection: string;
-  keyPointsJson: string;
-  fetchedAt: string;
-}
+// StoredArticle interface matches SQL table schema
+// Used for mapping SQL results in getArticles()
+// interface StoredArticle {
+//   id: string;
+//   url: string;
+//   title: string;
+//   content: string;
+//   source: string;
+//   topic: string;
+//   relevanceScore: number;
+//   qualityScore: number;
+//   biasDirection: string;
+//   keyPointsJson: string;
+//   fetchedAt: string;
+// }
 
-interface Artifact {
-  id: number;
-  artifactType: 'search_results' | 'synthesis_draft' | 'final_digest';
-  content: string;
-  createdAt: string;
-}
+// Artifact interface for future use with intermediate artifacts
+// interface Artifact {
+//   id: number;
+//   artifactType: 'search_results' | 'synthesis_draft' | 'final_digest';
+//   content: string;
+//   createdAt: string;
+// }
 
 export class DigestJob implements DurableObject {
   private state: DurableObjectState;
-  private env: Env;
+  private _env: Env;
   private sql: SqlStorage;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
-    this.env = env;
+    this._env = env;
+    void this._env; // Reserved for future use
     this.sql = state.storage.sql;
 
     // Initialize SQLite schema on first access
@@ -160,7 +164,8 @@ export class DigestJob implements DurableObject {
   }
 
   private getStatus(): Response {
-    const job = this.sql.exec('SELECT * FROM digest_job LIMIT 1').one() as DigestJobState | null;
+    const row = this.sql.exec('SELECT * FROM digest_job LIMIT 1').one();
+    const job = row ? this.mapJobRow(row as unknown as Record<string, unknown>) : null;
 
     if (!job) {
       return new Response(
@@ -177,7 +182,7 @@ export class DigestJob implements DurableObject {
     return new Response(
       JSON.stringify({
         success: true,
-        data: this.mapJobRow(job),
+        data: job,
       }),
       {
         headers: { 'Content-Type': 'application/json' },
@@ -186,10 +191,8 @@ export class DigestJob implements DurableObject {
   }
 
   private getProgress(): Response {
-    const job = this.sql.exec('SELECT * FROM digest_job LIMIT 1').one() as Record<
-      string,
-      unknown
-    > | null;
+    const row = this.sql.exec('SELECT * FROM digest_job LIMIT 1').one();
+    const job = row ? this.mapJobRow(row as unknown as Record<string, unknown>) : null;
 
     if (!job) {
       return new Response(
@@ -209,7 +212,7 @@ export class DigestJob implements DurableObject {
       );
     }
 
-    const progress = this.calculateProgress(job);
+    const progress = this.calculateProgress(job as unknown as Record<string, unknown>);
 
     return new Response(
       JSON.stringify({
@@ -269,23 +272,27 @@ export class DigestJob implements DurableObject {
   }
 
   private getArticles(): Response {
-    const articles = this.sql
+    const rows = this.sql
       .exec('SELECT * FROM articles ORDER BY quality_score DESC')
-      .toArray() as StoredArticle[];
+      .toArray();
 
-    const mapped = articles.map((a) => ({
-      id: a.id,
-      url: a.url,
-      title: a.title,
-      content: a.content,
-      source: a.source,
-      topic: a.topic,
-      relevanceScore: a.relevance_score,
-      qualityScore: a.quality_score,
-      biasDirection: a.bias_direction,
-      keyPoints: JSON.parse(a.key_points_json || '[]'),
-      fetchedAt: a.fetched_at,
-    }));
+    // Map snake_case SQL columns to camelCase
+    const mapped = rows.map((row) => {
+      const a = row as unknown as Record<string, unknown>;
+      return {
+        id: a.id as string,
+        url: a.url as string,
+        title: a.title as string,
+        content: a.content as string,
+        source: a.source as string,
+        topic: a.topic as string,
+        relevanceScore: a.relevance_score as number,
+        qualityScore: a.quality_score as number,
+        biasDirection: a.bias_direction as string,
+        keyPoints: JSON.parse((a.key_points_json as string) || '[]'),
+        fetchedAt: a.fetched_at as string,
+      };
+    });
 
     return new Response(
       JSON.stringify({

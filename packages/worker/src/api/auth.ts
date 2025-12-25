@@ -7,7 +7,7 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { Env, User, AuthToken } from '../types';
+import type { Env, AuthToken } from '../types';
 import { createUser, getUserByEmail, getUserById } from '../services/database';
 import {
   generateCodeVerifier,
