@@ -6,12 +6,7 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		adapter: adapter({
-			routes: {
-				include: ['/*'],
-				exclude: ['<all>']
-			}
-		}),
+		adapter: adapter(),
 		alias: {
 			$components: 'src/lib/components',
 			$stores: 'src/lib/stores',

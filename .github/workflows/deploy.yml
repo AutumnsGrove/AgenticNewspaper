@@ -69,5 +69,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: packages/web/.svelte-kit/output
-          command: pages deploy client --project-name=daily-clearing
+          workingDirectory: packages/web/.svelte-kit
+          command: pages deploy cloudflare --project-name=daily-clearing
