@@ -283,4 +283,160 @@ See **HANDOFF.md** for complete details:
 
 ---
 
-*Updated: December 25, 2025 | Next: TypeScript search service*
+## 🔐 WEB FRONTEND - AUTHENTICATION (Session: Dec 25, 2025 - PAUSED)
+
+**Status:** GroveAuth integration complete but debugging redirect errors - PAUSED for auth system redesign
+
+### ✅ COMPLETED
+
+#### GroveAuth OAuth 2.0 Integration
+- [x] Created `src/lib/auth/groveauth.ts` utility library
+  - PKCE helpers (generateCodeVerifier, generateCodeChallenge)
+  - OAuth flow functions (getLoginUrl, exchangeCode, verifyToken, refreshTokens)
+  - Full TypeScript types for tokens, users, token info
+
+#### Authentication Routes
+- [x] `src/routes/auth/login/+server.ts` - Initiates OAuth flow
+  - Generates PKCE parameters (state, code_verifier, code_challenge)
+  - Sets httpOnly cookies with `sameSite: 'none'` for cross-domain OAuth
+  - Redirects to Heartwood (heartwood.grove.place)
+
+- [x] `src/routes/auth/callback/+server.ts` - Handles OAuth callback
+  - Verifies state parameter (CSRF protection)
+  - Exchanges authorization code for tokens
+  - Sets access_token (1hr) and refresh_token (30d) cookies
+  - Added comprehensive logging with unique request IDs
+  - Redirects to /settings on success
+
+- [x] `src/routes/auth/logout/+server.ts` - Handles logout
+  - Revokes tokens with GroveAuth API
+  - Clears cookies
+  - Redirects to home page
+
+#### Server Hooks & Authentication
+- [x] `src/hooks.server.ts` - Automatic token verification
+  - Runs on every request
+  - Verifies access_token with GroveAuth API
+  - Auto-refreshes expired tokens using refresh_token
+  - Sets `locals.user` for authenticated requests
+  - Falls back to null for unauthenticated
+
+#### Type Definitions
+- [x] `src/app.d.ts` - SvelteKit type augmentation
+  - App.Locals interface with user object
+  - App.Platform interface for Cloudflare env vars
+  - Full TypeScript support for auth state
+
+#### Protected Routes
+- [x] `src/routes/settings/+page.server.ts` - Requires authentication
+  - Redirects to /auth/login if not authenticated
+  - Passes user data to settings page
+
+- [x] `src/routes/+page.server.ts` - Passes user data
+  - Makes auth state available to main page
+  - Used for showing Login/Logout buttons
+
+#### UI Components
+- [x] Login/Logout buttons on main page
+  - Conditional rendering based on auth state
+  - Shows user email on logout button
+  - Styled with consistent design system
+
+#### GroveAuth Client Registration
+- [x] Registered "daily-clearing" client in GroveAuth D1 database
+  - Client ID: `daily-clearing`
+  - Client Secret: Generated and stored in Cloudflare Pages secrets
+  - Redirect URI: `https://clearing.autumnsgrove.com/auth/callback`
+  - Allowed Origins: `https://clearing.autumnsgrove.com`
+
+#### Cloudflare Pages Configuration
+- [x] Environment variables configured via `wrangler pages secret`
+  - GROVEAUTH_CLIENT_ID
+  - GROVEAUTH_CLIENT_SECRET
+  - GROVEAUTH_REDIRECT_URI
+
+### ⚠️ ISSUES ENCOUNTERED
+
+#### Cookie Cross-Domain Issue (FIXED)
+**Problem:** OAuth state cookies not surviving redirect from Heartwood back to clearing.autumnsgrove.com
+**Solution:** Changed `sameSite: 'lax'` to `sameSite: 'none'` for temporary OAuth cookies (auth_state, code_verifier)
+
+#### 500 Error During Callback (DEBUGGING - PAUSED)
+**Problem:** User gets "Authentication failed: Authentication failed" error during callback
+**Evidence:**
+- Auth IS working - user logged in after hard refresh
+- Tokens are being obtained and set successfully
+- Error appears during the redirect flow
+- Error message suggests GroveAuth API returning "Authentication failed"
+
+**Hypothesis:**
+- OAuth authorization codes are single-use
+- Callback may be hit twice (browser retry, prefetch, duplicate request)
+- First request succeeds (tokens set)
+- Second request fails (code already used)
+- User sees error from second request but cookies from first request work
+
+**Debug Actions Taken:**
+- Added comprehensive logging with unique request IDs to track flow
+- Each log shows: `[requestId] Action` to identify duplicate requests
+- Logs show: callback invocation, state verification, token exchange, cookie setting, redirect
+- Attempted to tail Cloudflare Pages logs but callback requests not appearing in tail
+- Possible deployment propagation delay or logs not emitting from production
+
+**Current State:**
+- Code deployed with enhanced logging
+- Ready to debug once logs are accessible
+- Auth functionally works but error UX needs investigation
+
+### 🔄 NEXT STEPS (PAUSED - AWAITING AUTH REDESIGN)
+
+**User is re-wiring authentication system entirely - simpler approach coming**
+
+When resuming after new auth system:
+1. Review new auth architecture
+2. Update auth routes and hooks as needed
+3. Test new auth flow end-to-end
+4. Connect preferences API to authenticated users
+5. Implement D1 database for server-side settings storage
+
+### 📁 Files Modified/Created
+
+**Created:**
+- `packages/web/src/lib/auth/groveauth.ts` - OAuth utility library
+- `packages/web/src/routes/auth/login/+server.ts` - Login endpoint
+- `packages/web/src/routes/auth/callback/+server.ts` - OAuth callback handler
+- `packages/web/src/routes/auth/logout/+server.ts` - Logout endpoint
+- `packages/web/src/hooks.server.ts` - Server-side auth hooks
+- `packages/web/src/app.d.ts` - Type definitions
+- `packages/web/src/routes/settings/+page.server.ts` - Protected route loader
+- `packages/web/src/routes/+page.server.ts` - Main page loader
+
+**Modified:**
+- `packages/web/src/routes/+page.svelte` - Added Login/Logout buttons
+
+### 🔑 Important Context
+
+**GroveAuth Documentation:**
+- Public URL: heartwood.grove.place (login UI)
+- API URL: auth-api.grove.place (token operations)
+- Located at: `/Users/mini/Documents/Projects/GroveAuth`
+- Integration guide: `/Users/mini/Documents/Projects/GroveAuth/docs/AGENT_INTEGRATION.md`
+
+**OAuth Flow:**
+1. User clicks Login → `/auth/login`
+2. Generate PKCE params, set cookies, redirect to Heartwood
+3. User authenticates with Google/GitHub at Heartwood
+4. Heartwood redirects to `/auth/callback?code=...&state=...`
+5. Verify state, exchange code for tokens
+6. Set token cookies, redirect to `/settings`
+7. On every request, hooks verify token and set `locals.user`
+
+**Token Lifecycle:**
+- Access Token: 1 hour expiry, stored in httpOnly cookie
+- Refresh Token: 30 days expiry, stored in httpOnly cookie
+- Auto-refresh: hooks.server.ts automatically refreshes expired tokens
+- Verification: Every request checks token with GroveAuth API
+
+---
+
+*Updated: December 25, 2025 | Next: TypeScript search service (core/worker) | Web Auth: PAUSED for redesign*
