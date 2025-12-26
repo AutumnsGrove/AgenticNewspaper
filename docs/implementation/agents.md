@@ -1,12 +1,18 @@
 # Agent Implementations
 
-This document describes the AI agent implementations in the core package.
+This document describes the AI agent implementations across both packages.
 
 ## Overview
 
-The system uses a tiered agent architecture:
-- **Tier 1**: Fast execution agents using Claude Haiku
-- **Tier 2**: Deep reasoning agents using Claude Sonnet
+The system uses a tiered agent architecture implemented in **both Python and TypeScript**:
+- **Tier 1**: Fast execution agents using DeepSeek V3.2 (via OpenRouter)
+- **Tier 2**: Deep reasoning agents using DeepSeek V3.2 or Claude Sonnet (configurable)
+
+**Implementation Status:**
+- ✅ **Python Package** (`packages/core/src/agents/`) - Full implementation
+- ✅ **TypeScript Worker** (`packages/worker/src/services/`) - Core services ported
+
+**Note:** TypeScript uses a service-based architecture rather than agent classes, but implements the same logic.
 
 ## Tier 1 Agents
 
@@ -243,9 +249,61 @@ config = {
 }
 ```
 
+## TypeScript Service Implementation
+
+The TypeScript worker implements the same logic using services:
+
+### Service Mapping
+
+| Python Agent | TypeScript Service | File |
+|--------------|-------------------|------|
+| SearchAgent | SearchService | `packages/worker/src/services/search.ts` |
+| ParserAgent | ParserService | `packages/worker/src/services/parser.ts` |
+| (via provider) | LLMService | `packages/worker/src/services/llm.ts` |
+| Orchestrator | DigestGenerator | `packages/worker/src/services/digest-generator.ts` |
+
+### Unified Prompts
+
+Both packages share the same AI prompts via `shared/prompts.json`:
+```json
+{
+  "synthesis": {
+    "system": "You are a skeptical HN commenter...",
+    "user_template": "Synthesize these articles..."
+  },
+  "search_query": {
+    "system": "Generate search queries...",
+    "user_template": "Topic: {topic}..."
+  }
+}
+```
+
+**Benefits:**
+- Identical output quality across both packages
+- Single source of truth for prompts
+- Easy to update both implementations simultaneously
+
+### TypeScript Usage Example
+
+```typescript
+import { DigestGenerator } from './services/digest-generator';
+
+const generator = DigestGenerator.fromEnv(env);
+const result = await generator.generateDigest({
+  topics: [
+    { name: 'AI & ML', keywords: ['LLM', 'transformer'] }
+  ],
+  maxArticlesPerTopic: 5
+});
+
+console.log(result.markdown);
+console.log(`Cost: $${result.stats.totalCostUsd}`);
+```
+
 ## Testing
 
-Run agent tests:
+### Python Tests
+
 ```bash
 cd packages/core
 uv run pytest tests/agents/ -v
@@ -256,3 +314,16 @@ Test coverage includes:
 - Mock provider tests
 - Integration tests for orchestrator
 - Edge case handling
+
+### TypeScript Tests
+
+```bash
+cd packages/worker
+pnpm test
+```
+
+Test endpoints available:
+- `GET /api/test/search` - Test search service
+- `GET /api/test/llm` - Test LLM provider
+- `GET /api/test/parse` - Test parser
+- `POST /api/test/generate-digest` - Full digest generation
