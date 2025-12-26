@@ -1,59 +1,30 @@
 import type { Handle } from '@sveltejs/kit';
-import { verifyToken, refreshTokens } from '$lib/auth/groveauth';
+import { validateSession } from '$lib/auth/groveauth';
 
+/**
+ * Server hook that validates Heartwood sessions on every request
+ *
+ * The grove_session cookie (domain: .grove.place) is automatically
+ * sent with requests and validated against Heartwood's session API.
+ */
 export const handle: Handle = async ({ event, resolve }) => {
-	const accessToken = event.cookies.get('access_token');
-	const refreshToken = event.cookies.get('refresh_token');
-
+	// Default to no user
 	event.locals.user = null;
 
-	if (accessToken) {
-		const tokenInfo = await verifyToken(accessToken);
+	// Get cookie header to forward to Heartwood
+	const cookieHeader = event.request.headers.get('Cookie');
 
-		if (tokenInfo.active) {
+	if (cookieHeader) {
+		// Validate session with Heartwood
+		const { valid, user } = await validateSession(cookieHeader);
+
+		if (valid && user) {
+			// Map Heartwood user to our user format
 			event.locals.user = {
-				id: tokenInfo.sub!,
-				email: tokenInfo.email!,
-				name: tokenInfo.name || null
+				id: user.id,
+				email: user.email,
+				name: user.name,
 			};
-		} else if (refreshToken) {
-			// Token expired, try refresh
-			const clientId = event.platform?.env?.GROVEAUTH_CLIENT_ID || 'daily-clearing';
-			const clientSecret = event.platform?.env?.GROVEAUTH_CLIENT_SECRET || '';
-
-			if (clientSecret) {
-				const newTokens = await refreshTokens({
-					refreshToken,
-					clientId,
-					clientSecret
-				});
-
-				if (newTokens) {
-					event.cookies.set('access_token', newTokens.access_token, {
-						path: '/',
-						httpOnly: true,
-						secure: true,
-						sameSite: 'lax',
-						maxAge: newTokens.expires_in
-					});
-					event.cookies.set('refresh_token', newTokens.refresh_token, {
-						path: '/',
-						httpOnly: true,
-						secure: true,
-						sameSite: 'lax',
-						maxAge: 30 * 24 * 60 * 60
-					});
-
-					const newTokenInfo = await verifyToken(newTokens.access_token);
-					if (newTokenInfo.active) {
-						event.locals.user = {
-							id: newTokenInfo.sub!,
-							email: newTokenInfo.email!,
-							name: newTokenInfo.name || null
-						};
-					}
-				}
-			}
 		}
 	}
 

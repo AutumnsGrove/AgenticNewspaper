@@ -1,144 +1,132 @@
 /**
- * GroveAuth Integration
- * Centralized auth for AutumnsGrove properties
+ * Heartwood Session-Based Authentication
+ *
+ * Uses SessionDO (Durable Object sessions) instead of OAuth tokens.
+ * Session cookie: grove_session={sessionId}:{userId}:{signature}
+ * Domain: .grove.place (works across all subdomains)
  */
 
-const AUTH_BASE_URL = 'https://auth-api.grove.place';
+const AUTH_API_URL = 'https://auth-api.grove.place';
+const AUTH_FRONTEND_URL = 'https://heartwood.grove.place';
 
 // ==================== Types ====================
 
-export interface AuthTokens {
-	access_token: string;
-	refresh_token: string;
-	expires_in: number;
-	token_type: 'Bearer';
-}
-
-export interface AuthUser {
-	sub: string;
+export interface SessionUser {
+	id: string;
 	email: string;
 	name: string | null;
-	picture: string | null;
-	provider: 'google' | 'github' | 'magic_code';
+	avatarUrl: string | null;
+	isAdmin: boolean;
 }
 
-export interface TokenInfo {
-	active: boolean;
-	sub?: string;
-	email?: string;
-	name?: string;
-	exp?: number;
-	client_id?: string;
+export interface Session {
+	id: string;
+	deviceName: string | null;
+	lastActiveAt: string;
 }
 
-// ==================== PKCE Helpers ====================
-
-export function generateCodeVerifier(): string {
-	const array = new Uint8Array(32);
-	crypto.getRandomValues(array);
-	return base64UrlEncode(array);
+export interface SessionValidationResponse {
+	valid: boolean;
+	user: SessionUser | null;
+	session: Session | null;
 }
 
-export async function generateCodeChallenge(verifier: string): Promise<string> {
-	const encoder = new TextEncoder();
-	const data = encoder.encode(verifier);
-	const hash = await crypto.subtle.digest('SHA-256', data);
-	return base64UrlEncode(new Uint8Array(hash));
-}
+// ==================== Session Validation ====================
 
-function base64UrlEncode(buffer: Uint8Array): string {
-	let binary = '';
-	for (let i = 0; i < buffer.length; i++) {
-		binary += String.fromCharCode(buffer[i]);
+/**
+ * Validate the current session by forwarding cookies to Heartwood
+ */
+export async function validateSession(cookieHeader: string): Promise<SessionValidationResponse> {
+	const response = await fetch(`${AUTH_API_URL}/session/validate`, {
+		method: 'POST',
+		headers: {
+			Cookie: cookieHeader,
+		},
+	});
+
+	if (!response.ok) {
+		return { valid: false, user: null, session: null };
 	}
-	return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+	return response.json();
 }
 
-// ==================== Auth Functions ====================
+// ==================== Login URL ====================
 
+/**
+ * Get the login URL to redirect users to Heartwood
+ */
 export function getLoginUrl(config: {
 	clientId: string;
 	redirectUri: string;
-	state: string;
-	codeChallenge: string;
 }): string {
 	const params = new URLSearchParams({
 		client_id: config.clientId,
 		redirect_uri: config.redirectUri,
-		state: config.state,
-		code_challenge: config.codeChallenge,
-		code_challenge_method: 'S256'
 	});
-	return `https://heartwood.grove.place/login?${params}`;
+	return `${AUTH_FRONTEND_URL}/login?${params}`;
 }
 
-export async function exchangeCode(config: {
-	code: string;
-	codeVerifier: string;
-	clientId: string;
-	clientSecret: string;
-	redirectUri: string;
-}): Promise<AuthTokens> {
-	const response = await fetch(`${AUTH_BASE_URL}/token`, {
+// ==================== Logout ====================
+
+/**
+ * Revoke the current session (logout from this device)
+ */
+export async function revokeSession(cookieHeader: string): Promise<boolean> {
+	const response = await fetch(`${AUTH_API_URL}/session/revoke`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'authorization_code',
-			code: config.code,
-			redirect_uri: config.redirectUri,
-			client_id: config.clientId,
-			client_secret: config.clientSecret,
-			code_verifier: config.codeVerifier
-		})
+		headers: {
+			Cookie: cookieHeader,
+		},
+	});
+	return response.ok;
+}
+
+/**
+ * Revoke all sessions (logout from all devices)
+ */
+export async function revokeAllSessions(cookieHeader: string): Promise<boolean> {
+	const response = await fetch(`${AUTH_API_URL}/session/revoke-all`, {
+		method: 'POST',
+		headers: {
+			Cookie: cookieHeader,
+		},
+	});
+	return response.ok;
+}
+
+// ==================== Session Management ====================
+
+/**
+ * List all active sessions for the current user
+ */
+export async function listSessions(cookieHeader: string): Promise<Session[]> {
+	const response = await fetch(`${AUTH_API_URL}/session/list`, {
+		headers: {
+			Cookie: cookieHeader,
+		},
 	});
 
 	if (!response.ok) {
-		const error = await response.json();
-		throw new Error(error.error_description || 'Token exchange failed');
+		return [];
 	}
 
-	return response.json();
+	const data = await response.json();
+	return data.sessions || [];
 }
 
-export async function verifyToken(accessToken: string): Promise<TokenInfo> {
-	const response = await fetch(`${AUTH_BASE_URL}/verify`, {
-		headers: { Authorization: `Bearer ${accessToken}` }
+/**
+ * Revoke a specific session by ID
+ */
+export async function revokeSessionById(
+	sessionId: string,
+	cookieHeader: string
+): Promise<boolean> {
+	const response = await fetch(`${AUTH_API_URL}/session/${sessionId}`, {
+		method: 'DELETE',
+		headers: {
+			Cookie: cookieHeader,
+		},
 	});
-	return response.json();
-}
-
-export async function getUserInfo(accessToken: string): Promise<AuthUser | null> {
-	const response = await fetch(`${AUTH_BASE_URL}/userinfo`, {
-		headers: { Authorization: `Bearer ${accessToken}` }
-	});
-
-	if (!response.ok) return null;
-	return response.json();
-}
-
-export async function refreshTokens(config: {
-	refreshToken: string;
-	clientId: string;
-	clientSecret: string;
-}): Promise<AuthTokens | null> {
-	const response = await fetch(`${AUTH_BASE_URL}/token/refresh`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'refresh_token',
-			refresh_token: config.refreshToken,
-			client_id: config.clientId,
-			client_secret: config.clientSecret
-		})
-	});
-
-	if (!response.ok) return null;
-	return response.json();
-}
-
-export async function logout(accessToken: string): Promise<void> {
-	await fetch(`${AUTH_BASE_URL}/logout`, {
-		method: 'POST',
-		headers: { Authorization: `Bearer ${accessToken}` }
-	});
+	return response.ok;
 }

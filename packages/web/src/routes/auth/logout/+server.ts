@@ -1,16 +1,23 @@
 import { redirect } from '@sveltejs/kit';
-import { logout } from '$lib/auth/groveauth';
+import { revokeSession } from '$lib/auth/groveauth';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ cookies }) => {
-	const accessToken = cookies.get('access_token');
+/**
+ * Logout endpoint - revokes the current session
+ *
+ * This revokes only the current device's session.
+ * The user will remain logged in on other devices.
+ */
+export const POST: RequestHandler = async ({ request }) => {
+	const cookieHeader = request.headers.get('Cookie');
 
-	if (accessToken) {
-		await logout(accessToken).catch(() => {}); // Best effort
+	if (cookieHeader) {
+		// Revoke the current session at Heartwood
+		await revokeSession(cookieHeader).catch(() => {
+			// Best effort - continue even if revocation fails
+		});
 	}
 
-	cookies.delete('access_token', { path: '/' });
-	cookies.delete('refresh_token', { path: '/' });
-
+	// Redirect to home page
 	throw redirect(302, '/');
 };

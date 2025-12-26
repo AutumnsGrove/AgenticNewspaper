@@ -1,38 +1,22 @@
 import { redirect } from '@sveltejs/kit';
-import { generateCodeVerifier, generateCodeChallenge, getLoginUrl } from '$lib/auth/groveauth';
+import { getLoginUrl } from '$lib/auth/groveauth';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ cookies, platform }) => {
-	const state = crypto.randomUUID();
-	const codeVerifier = generateCodeVerifier();
-	const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-	// Get env vars from platform (Cloudflare Pages)
+/**
+ * Login endpoint - redirects to Heartwood for authentication
+ *
+ * No PKCE needed! Heartwood handles the session creation and
+ * sets the grove_session cookie (domain: .grove.place)
+ */
+export const GET: RequestHandler = async ({ platform }) => {
 	const clientId = platform?.env?.GROVEAUTH_CLIENT_ID || 'daily-clearing';
-	const redirectUri = platform?.env?.GROVEAUTH_REDIRECT_URI || 'https://clearing.autumnsgrove.com/auth/callback';
-
-	// Store for callback verification
-	// Note: sameSite='none' required for OAuth flow across domains
-	cookies.set('auth_state', state, {
-		path: '/',
-		httpOnly: true,
-		secure: true,
-		sameSite: 'none',
-		maxAge: 600 // 10 minutes
-	});
-	cookies.set('code_verifier', codeVerifier, {
-		path: '/',
-		httpOnly: true,
-		secure: true,
-		sameSite: 'none',
-		maxAge: 600
-	});
+	const redirectUri =
+		platform?.env?.GROVEAUTH_REDIRECT_URI ||
+		'https://clearing.autumnsgrove.com/auth/callback';
 
 	const loginUrl = getLoginUrl({
 		clientId,
 		redirectUri,
-		state,
-		codeChallenge
 	});
 
 	throw redirect(302, loginUrl);
