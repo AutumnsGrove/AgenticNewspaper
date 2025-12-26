@@ -470,6 +470,10 @@ export class DigestJob implements DurableObject {
       now
     );
 
+    // Clean up DO storage - workflow complete, results stored elsewhere
+    await this.state.storage.deleteAll();
+    console.log('[DigestJob] Workflow complete, storage cleared');
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -490,6 +494,10 @@ export class DigestJob implements DurableObject {
       body.error,
       now
     );
+
+    // Clean up DO storage - workflow failed, no need to keep data
+    await this.state.storage.deleteAll();
+    console.log('[DigestJob] Workflow failed, storage cleared');
 
     return new Response(
       JSON.stringify({
