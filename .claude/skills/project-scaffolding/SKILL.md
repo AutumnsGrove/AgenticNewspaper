@@ -83,9 +83,9 @@ touch src/YourProject/__init__.py
 
 ### JavaScript/TypeScript
 ```bash
-npm init -y
-npm install express dotenv
-npm install --save-dev typescript @types/node jest eslint prettier
+pnpm init
+pnpm add express dotenv
+pnpm add -D typescript @types/node jest eslint prettier
 
 mkdir -p src/{routes,controllers,middleware,utils}
 touch src/index.ts
@@ -188,7 +188,7 @@ grep "\[Fill in:" AGENT.md
 grep "secrets.json" .gitignore
 
 # Dependencies installed
-uv sync  # or npm install
+uv sync  # or pnpm install
 
 # Project runs
 uv run python src/projectname/main.py
@@ -220,8 +220,8 @@ git config user.email "your.email@example.com"
 uv cache clean
 
 # JavaScript: Fresh install
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
 ```
 
 ## Related Resources

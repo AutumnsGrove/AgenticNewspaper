@@ -103,7 +103,7 @@ uv run ruff check $file
 ### pre-push
 ```bash
 # Runs before push
-uv run pytest tests/  # or npm test, go test, cargo test
+uv run pytest tests/  # or pnpm test, go test, cargo test
 ```
 
 ## Testing Hooks
