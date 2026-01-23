@@ -18,9 +18,9 @@ Activate this skill when:
 
 ```bash
 npx sv create my-app      # Create SvelteKit project
-cd my-app && npm install
-npm run dev               # Start dev server (localhost:5173)
-npm run build             # Build for production
+cd my-app && pnpm install
+pnpm dev               # Start dev server (localhost:5173)
+pnpm build             # Build for production
 ```
 
 ## Runes Quick Reference

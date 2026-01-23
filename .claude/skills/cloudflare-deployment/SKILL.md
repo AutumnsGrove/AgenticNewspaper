@@ -18,7 +18,7 @@ Activate this skill when:
 
 ```bash
 # Install wrangler
-npm install -g wrangler
+pnpm add -g wrangler
 
 # Login
 wrangler login
@@ -136,8 +136,8 @@ return Response.json(results);
 wrangler pages deploy ./build --project-name=my-site
 
 # With SvelteKit
-npm install -D @sveltejs/adapter-cloudflare
-npm run build
+pnpm add -D @sveltejs/adapter-cloudflare
+pnpm build
 wrangler pages deploy .svelte-kit/cloudflare
 ```
 

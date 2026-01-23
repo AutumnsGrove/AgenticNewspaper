@@ -33,9 +33,9 @@ npx vitest --ui         # Visual UI
 
 ### Jest
 ```bash
-npm test
-npm test -- --watch
-npm test -- --coverage
+pnpm test
+pnpm test --watch
+pnpm test --coverage
 ```
 
 ## Test Structure: AAA Pattern
